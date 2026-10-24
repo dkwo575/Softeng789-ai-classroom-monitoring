@@ -31,6 +31,13 @@ attendance, both awaiting administrator approval. Apply `database/migrations/202
 after the check-in migration. Registration photos expire after seven days and are erased after a decision;
 only approved encrypted templates become available for photo attendance. See the registration section in the 2A guides.
 
+Phase 3A adds an opt-in **local webcam movement test** to the student overview on desktop and mobile.
+It uses MediaPipe Face Landmarker in a browser worker for face visibility and reference-relative head
+geometry. It does not send video/events to teachers, identify students or change attendance.
+Run `npm --prefix frontend run setup:webcam` after installing frontend dependencies to prepare the
+same-origin model/WASM assets. See the [English guide](docs/phase3a-webcam-events.md) and
+[한국어 실행·테스트 가이드](docs/phase3a-webcam-events.ko.md). Teacher live monitoring remains a separate simulation.
+
 ## System Architecture
 
 A responsive React web app talks only to the Spring Boot Education Server, which owns PostgreSQL and

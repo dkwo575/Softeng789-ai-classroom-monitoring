@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "setup:webcam": "node scripts/setup-webcam.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
@@ -12,6 +13,7 @@
     "check:boundaries": "sh ../scripts/check-frontend-boundaries.sh"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

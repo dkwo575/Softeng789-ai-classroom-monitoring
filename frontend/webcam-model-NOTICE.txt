@@ -1,0 +1,16 @@
+MediaPipe Tasks Vision and Face Landmarker model bundle
+Copyright Google LLC. Distributed under Apache License 2.0.
+License: https://www.apache.org/licenses/LICENSE-2.0
+Source: https://github.com/google-ai-edge/mediapipe
+Runtime version and model SHA-256: frontend/webcam-model-manifest.json
+Model cards:
+https://storage.googleapis.com/mediapipe-assets/MediaPipe%20BlazeFace%20Model%20Card%20%28Short%20Range%29.pdf
+https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Face%20Mesh%20V2.pdf
+https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Blendshape%20V2.pdf
+
+This application uses only face geometry. Blendshape output is disabled.
+The models are designed for nearby, front-facing faces. The detector model card
+lists surveillance and identity recognition as out of scope. This integration is
+a voluntary local camera/geometry experiment, not a validated classroom monitoring
+system. It must not be used to grade students or decide participation or attendance.
+The software license does not establish lawful or appropriate institutional use.

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ConsentPanel, StudentCheckInPanel } from '../features/photo-attendance';
+import { WebcamEventsEntry } from '../features/webcam-events';
 import StudentAttendanceView from '../components/student/StudentAttendanceView';
 import StudentAccomplishmentsView from '../components/student/StudentAccomplishmentsView';
 import StudentFeedbackView from '../components/student/StudentFeedbackView';
@@ -116,7 +117,7 @@ export default function StudentPortal({ user, onLogout }: Props) {
 
       <main className="student-portal__page" id="student-main" tabIndex={-1}>
         <div className="student-portal__inner">
-          {view === 'overview' && <><ConsentPanel studentId={user.id} /><StudentCheckInPanel key={user.id} studentId={user.id} /></>}
+          {view === 'overview' && <><ConsentPanel studentId={user.id} /><StudentCheckInPanel key={user.id} studentId={user.id} /><WebcamEventsEntry key={`webcam-${user.id}`} /></>}
           {errors.length > 0 && (
             <output className="notice notice--warn student-data-notice">
               <span className="notice__mark" aria-hidden="true" />

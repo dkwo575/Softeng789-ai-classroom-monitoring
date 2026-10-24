@@ -51,6 +51,7 @@ __pycache__/
 *.engine
 *.weights
 *.tflite
+/frontend/public/webcam-model/
 
 # Local databases and database dumps
 *.db
