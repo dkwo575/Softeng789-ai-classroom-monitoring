@@ -43,7 +43,7 @@ def main():
             return run("docker", "exec", "-i", container, "psql", "-X", "-q", "-v", "ON_ERROR_STOP=1",
                 "-h", "127.0.0.1", "-U", "postgres", "-d", database, data=contents)
 
-        for database in ("classlens_schema_fresh", "classlens_schema_upgrade"):
+        for database in ("classlens_schema_fresh", "classlens_schema_upgrade", "classlens_schema_webcam_v6"):
             sql("postgres", "CREATE DATABASE " + database)
         # Fresh database is deliberately empty: Flyway, not Docker init or Hibernate, owns DDL.
         sql("classlens_schema_upgrade", baseline)
@@ -51,7 +51,7 @@ def main():
         for migration in migrations:
             if migration.name >= "20260926":
                 sql("classlens_schema_upgrade", migration.read_text())
-        databases = ["classlens_schema_fresh", "classlens_schema_upgrade"]
+        databases = ["classlens_schema_fresh", "classlens_schema_upgrade", "classlens_schema_webcam_v6"]
         fixture = os.environ.get("CLASSLENS_SCHEMA_FIXTURE_BACKUP")
         if fixture:
             backup = Path(fixture).resolve(strict=True)

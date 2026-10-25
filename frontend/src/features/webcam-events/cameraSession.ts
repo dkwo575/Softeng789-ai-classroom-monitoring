@@ -2,7 +2,7 @@ export type FrameResult = {
   type: 'result'; timestamp: number; count: number; matrix: number[] | null; inferenceMs: number;
   boxes: { x: number; y: number; width: number; height: number }[];
 };
-type Callbacks = { onState: (state: string) => void; onFrame: (result: FrameResult) => void; onFailure: (message: string) => void };
+type Callbacks = { onState: (state: string) => void; onFrame: (result: FrameResult) => void; onFailure: (message: string) => void; onUnavailable?: () => void };
 
 export function createCameraSession(video: HTMLVideoElement, callbacks: Callbacks) {
   let closed = false, worker: Worker | null = null, stream: MediaStream | null = null;
@@ -10,6 +10,11 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let lastVideoTime = -1, lastFrameAt = performance.now();
   let ready = false;
+  let paused = false;
+  let cameraMuted = false;
+  function unavailable() {
+    if (!paused) { paused = true; callbacks.onState('Camera retained · analysis temporarily unavailable'); callbacks.onUnavailable?.(); }
+  }
   function stop() {
     if (closed) return;
     closed = true;
@@ -23,12 +28,18 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
     stop(); callbacks.onFailure(message);
   }
   function armTimeout(ms: number, message: string) {
-    clearTimeout(watchdog); watchdog = setTimeout(() => fail(message), ms);
+    const deadline = performance.now() + ms;
+    clearTimeout(watchdog); watchdog = setTimeout(() => {
+      // Background scheduling is not a camera error. Keep the outstanding frame bounded;
+      // delayed results are discarded below, and never bridge an observation interval.
+      if (ready && (document.hidden || performance.now() - deadline > 1500)) { unavailable(); armTimeout(ms, message); }
+      else fail(message);
+    }, ms);
   }
   async function frame() {
     if (closed || !ready) return;
-    if (video.readyState < 2 || video.currentTime === lastVideoTime) {
-      if (performance.now() - lastFrameAt > 5000) { fail('Camera frames stopped arriving. Check the camera and restart.'); return; }
+    if (cameraMuted || video.readyState < 2 || video.currentTime === lastVideoTime) {
+      if (performance.now() - lastFrameAt > 1500) unavailable();
       timer = setTimeout(() => void frame(), 100); return;
     }
     lastVideoTime = video.currentTime;
@@ -62,7 +73,8 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
             stream = acquired;
             stream.getVideoTracks().forEach(track => {
               track.addEventListener('ended', () => fail('Camera disconnected or permission was revoked.'));
-              track.addEventListener('mute', () => fail('Camera became unavailable. Restart when it is available.'));
+              track.addEventListener('mute', () => { cameraMuted = true; unavailable(); });
+              track.addEventListener('unmute', () => { cameraMuted = false; });
             });
             video.srcObject = acquired;
             await video.play();
@@ -75,7 +87,11 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
           }
         } else if (data.type === 'result') {
           clearTimeout(watchdog);
-          callbacks.onFrame(data as FrameResult);
+          if (cameraMuted || !Number.isFinite(data.timestamp) || performance.now() - data.timestamp > 1500) unavailable();
+          else {
+            if (paused) { paused = false; callbacks.onState('Camera running · local analysis'); }
+            callbacks.onFrame(data as FrameResult);
+          }
           // One outstanding frame only; no frame backlog on slower devices.
           timer = setTimeout(() => void frame(), 200);
         }

@@ -36,7 +36,16 @@ It uses MediaPipe Face Landmarker in a browser worker for face visibility and re
 geometry. It does not send video/events to teachers, identify students or change attendance.
 Run `npm --prefix frontend run setup:webcam` after installing frontend dependencies to prepare the
 same-origin model/WASM assets. See the [English guide](docs/phase3a-webcam-events.md) and
-[한국어 실행·테스트 가이드](docs/phase3a-webcam-events.ko.md). Teacher live monitoring remains a separate simulation.
+[한국어 실행·테스트 가이드](docs/phase3a-webcam-events.ko.md).
+
+Phase 3B adds voluntary, adult-only **event metadata sharing** for an enrolled class, with separate
+student consent. Teacher Live monitoring shows sharing connections, per-student summaries and grouped
+optional checks (Reviewed / False positive). Routine head movements are informational. Switching windows
+retains the camera; suspended analysis is marked unavailable. Video remains on the student's
+device; attendance, sleep and attention are not inferred. Sharing is disabled by default with
+`WEBCAM_SHARING_ENABLED=false`; Flyway V7/V8 add the metadata tables and refined states. See the
+[English implementation guide](docs/phase3b-webcam-sharing.md) and
+[한국어 실행·테스트 가이드](docs/phase3b-webcam-sharing.ko.md) for setup, privacy limits and testing.
 
 ## System Architecture
 

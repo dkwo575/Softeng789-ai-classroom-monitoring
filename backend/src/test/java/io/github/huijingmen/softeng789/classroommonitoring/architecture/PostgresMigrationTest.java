@@ -16,9 +16,9 @@ class PostgresMigrationTest {
         var flyway=Flyway.configure().dataSource(url,"postgres","schema-test-only").defaultSchema("public")
                 .baselineVersion("1").baselineOnMigrate(false).validateOnMigrate(true).cleanDisabled(true).outOfOrder(false).load();
         // Reproduce a phase1 database with real rows before adding the phase2 tables.
-        if (url.endsWith("_v3") || url.endsWith("_v5")) {
+        if (url.endsWith("_v3") || url.endsWith("_v5") || url.endsWith("_v6")) {
             Flyway.configure().dataSource(url,"postgres","schema-test-only").defaultSchema("public")
-                    .target(url.endsWith("_v5") ? "5" : "3").cleanDisabled(true).load().migrate();
+                    .target(url.endsWith("_v6") ? "6" : url.endsWith("_v5") ? "5" : "3").cleanDisabled(true).load().migrate();
             try (var c = DriverManager.getConnection(url,"postgres","schema-test-only"); var q = c.createStatement()) {
                 q.executeUpdate("INSERT INTO students(student_number,university_email,first_name,last_name,course,seat) "
                         + "VALUES ('PHASE1-PRESERVE','preserve@example.test','Synthetic','Student','TEST','A1')");
@@ -43,9 +43,9 @@ class PostgresMigrationTest {
             flyway.migrate();
             assertThat(flyway.migrate().migrationsExecuted).isZero();
             flyway.validate();
-            assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+            assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
             try (var q = connection.createStatement(); var r = q.executeQuery(
-                    "SELECT to_regclass('public.cv_student_checkins') IS NOT NULL AND to_regclass('public.cv_registration_faces') IS NOT NULL AND to_regclass('public.attendance_review_events') IS NOT NULL")) {
+                    "SELECT to_regclass('public.cv_student_checkins') IS NOT NULL AND to_regclass('public.cv_registration_faces') IS NOT NULL AND to_regclass('public.attendance_review_events') IS NOT NULL AND to_regclass('public.webcam_sharing_runs') IS NOT NULL AND to_regclass('public.webcam_observations') IS NOT NULL")) {
                 assertThat(r.next()).isTrue(); assertThat(r.getBoolean(1)).isTrue();
             }
             var after=counts(connection);

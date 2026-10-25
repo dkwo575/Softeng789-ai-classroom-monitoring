@@ -24,6 +24,9 @@ spring:
       mail.smtp.timeout: ${SMTP_READ_TIMEOUT_MS:10000}
       mail.smtp.writetimeout: ${SMTP_WRITE_TIMEOUT_MS:10000}
 
+webcam:
+  sharing-enabled: ${WEBCAM_SHARING_ENABLED:false}
+
 cv:
   enabled: ${CV_ENABLED:false}
   service-url: ${CV_SERVICE_URL:http://127.0.0.1:8000}

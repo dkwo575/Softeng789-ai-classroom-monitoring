@@ -40,16 +40,17 @@ const code=compile('cameraSession.ts');
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
 function harness() {
   const workers=[],requests=[],states=[],frames=[],errors=[],timers=new Map();let id=0,now=0;
+  const document={baseURI:'http://localhost:5173/',hidden:false};
   class Worker { constructor(){this.messages=[];this.terminated=false;workers.push(this);} postMessage(m){this.messages.push(m);} terminate(){this.terminated=true;} }
   const video={srcObject:null,currentTime:0,readyState:2,play:async()=>{},pause(){}};
   let bitmap={closed:false,close(){this.closed=true;}};
-  const globals={URL,document:{baseURI:'http://localhost:5173/'},window:{isSecureContext:true,Worker,createImageBitmap:()=>{}},Worker,
+  const globals={URL,document,window:{isSecureContext:true,Worker,createImageBitmap:()=>{}},Worker,
     navigator:{mediaDevices:{getUserMedia:()=>new Promise(resolve=>requests.push(resolve))}},performance:{now:()=>now},
     createImageBitmap:()=>Promise.resolve(bitmap),setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id;},clearTimeout:key=>timers.delete(key),Error};
   const api=load(code,globals);const session=api.createCameraSession(video,{onState:s=>states.push(s),onFrame:f=>frames.push(f),onFailure:e=>errors.push(e)});
   const track={stopped:false,handlers:{},stop(){this.stopped=true;},addEventListener(k,fn){this.handlers[k]=fn;}};
   const stream={getTracks:()=>[track],getVideoTracks:()=>[track]};
-  return {session,video,track,stream,workers,requests,states,frames,errors,timers,get bitmap(){return bitmap;},setBitmap:b=>bitmap=b,
+  return {session,video,track,stream,workers,requests,states,frames,errors,timers,document,get bitmap(){return bitmap;},setBitmap:b=>bitmap=b,
     clock:n=>now=n,fire:ms=>{const item=[...timers].find(([,v])=>v.ms===ms);assert(item,`timer ${ms}`);timers.delete(item[0]);item[1].fn();},
     ready:async()=>{await session.start();void workers[0].onmessage({data:{type:'ready'}});await flush();requests[0](stream);await flush();}};
 }
@@ -77,4 +78,22 @@ test('model failure and playback failure clean up and expose a retryable message
   const h=harness();await h.session.start();await h.workers[0].onmessage({data:{type:'error',message:'Model missing'}});
   assert.equal(h.errors[0],'Model missing');assert(h.workers[0].terminated);assert.equal(h.requests.length,0);
   const p=harness();p.video.play=async()=>{throw new Error('blocked')};await p.ready();assert(p.track.stopped);assert.match(p.errors[0],/blocked/);assert.equal(p.frames.length,0);
+});
+test('hidden tab retains media and ignores delayed inference, then accepts fresh frames',async()=>{
+  const h=harness();await h.ready();h.document.hidden=true;h.clock(6000);h.fire(5000);
+  assert.equal(h.track.stopped,false);assert.equal(h.errors.length,0);
+  await h.workers[0].onmessage({data:{type:'result',timestamp:0,count:0,boxes:[]}});assert.equal(h.frames.length,0);
+  h.document.hidden=false;h.video.currentTime=6;h.fire(200);await flush();
+  await h.workers[0].onmessage({data:{type:'result',timestamp:6000,count:1,boxes:[]}});assert.equal(h.frames.length,1);
+  h.session.stop();assert(h.track.stopped);
+});
+test('frozen preview and muted tracks pause analysis without reporting a missing face',async()=>{
+  const h=harness();await h.ready();h.track.handlers.mute();
+  await h.workers[0].onmessage({data:{type:'result',timestamp:0,count:0,boxes:[]}});assert.equal(h.frames.length,0);
+  h.clock(3000);h.fire(200);await flush();assert.equal(h.track.stopped,false);assert.equal(h.errors.length,0);
+  h.track.handlers.unmute();h.video.currentTime=3;h.fire(100);await flush();
+  await h.workers[0].onmessage({data:{type:'result',timestamp:3000,count:1,boxes:[]}});assert.equal(h.frames.length,1);h.session.stop();
+});
+test('a delayed timer on foreground return is not treated as a model failure',async()=>{
+  const h=harness();await h.ready();h.clock(60000);h.fire(5000);assert.equal(h.errors.length,0);assert.equal(h.track.stopped,false);h.session.stop();
 });
