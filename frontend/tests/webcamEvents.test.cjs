@@ -39,7 +39,7 @@ test('gaps and out-of-order timestamps cannot fabricate a sustained event', () =
 const code=compile('cameraSession.ts');
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
 function harness() {
-  const workers=[],requests=[],states=[],frames=[],errors=[],timers=new Map();let id=0,now=0;
+  const workers=[],requests=[],states=[],frames=[],errors=[],media=[],timers=new Map();let id=0,now=0;
   const document={baseURI:'http://localhost:5173/',hidden:false};
   class Worker { constructor(){this.messages=[];this.terminated=false;workers.push(this);} postMessage(m){this.messages.push(m);} terminate(){this.terminated=true;} }
   const video={srcObject:null,currentTime:0,readyState:2,play:async()=>{},pause(){}};
@@ -47,10 +47,10 @@ function harness() {
   const globals={URL,document,window:{isSecureContext:true,Worker,createImageBitmap:()=>{}},Worker,
     navigator:{mediaDevices:{getUserMedia:()=>new Promise(resolve=>requests.push(resolve))}},performance:{now:()=>now},
     createImageBitmap:()=>Promise.resolve(bitmap),setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id;},clearTimeout:key=>timers.delete(key),Error};
-  const api=load(code,globals);const session=api.createCameraSession(video,{onState:s=>states.push(s),onFrame:f=>frames.push(f),onFailure:e=>errors.push(e)});
+  const api=load(code,globals);const session=api.createCameraSession(video,{onState:s=>states.push(s),onFrame:f=>frames.push(f),onFailure:e=>errors.push(e),onMedia:s=>media.push(s)});
   const track={stopped:false,handlers:{},stop(){this.stopped=true;},addEventListener(k,fn){this.handlers[k]=fn;}};
   const stream={getTracks:()=>[track],getVideoTracks:()=>[track]};
-  return {session,video,track,stream,workers,requests,states,frames,errors,timers,document,get bitmap(){return bitmap;},setBitmap:b=>bitmap=b,
+  return {session,video,track,stream,workers,requests,states,frames,errors,media,timers,document,get bitmap(){return bitmap;},setBitmap:b=>bitmap=b,
     clock:n=>now=n,fire:ms=>{const item=[...timers].find(([,v])=>v.ms===ms);assert(item,`timer ${ms}`);timers.delete(item[0]);item[1].fn();},
     ready:async()=>{await session.start();void workers[0].onmessage({data:{type:'ready'}});await flush();requests[0](stream);await flush();}};
 }
@@ -96,4 +96,17 @@ test('frozen preview and muted tracks pause analysis without reporting a missing
 });
 test('a delayed timer on foreground return is not treated as a model failure',async()=>{
   const h=harness();await h.ready();h.clock(60000);h.fire(5000);assert.equal(h.errors.length,0);assert.equal(h.track.stopped,false);h.session.stop();
+});
+
+
+test('shared camera is published only after playback is ready and cleared on stop', async()=>{
+  const h=harness(); await h.ready();
+  assert.equal(h.requests.length,1); assert.equal(h.media.length,1); assert.equal(h.media[0],h.stream);
+  h.session.stop(); assert.equal(h.media.at(-1),null); assert(h.track.stopped);
+});
+
+test('camera returned after cancellation is never exposed to video sharing', async()=>{
+  const h=harness();await h.session.start();void h.workers[0].onmessage({data:{type:'ready'}});await flush();
+  h.session.stop();h.requests[0](h.stream);await flush();
+  assert(h.track.stopped);assert(h.media.every(s=>s===null));
 });

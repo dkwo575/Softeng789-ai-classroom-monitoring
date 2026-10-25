@@ -6,7 +6,7 @@ export default function WebcamEventsEntry({ studentId }: { studentId?: string })
   const [open, setOpen] = useState(false);
   return <div style={{ margin: '20px 0' }}>
     <button type="button" className="btn" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      {open ? 'Close webcam movement test' : 'Open webcam movement test'}
+      {open ? 'Close classroom camera' : 'Open classroom camera'}
     </button>
     {open && <Suspense fallback={<p role="status">Loading camera test…</p>}><Panel studentId={studentId} /></Suspense>}
   </div>;

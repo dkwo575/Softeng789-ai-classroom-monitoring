@@ -16,7 +16,7 @@ async function description(peer: RTCPeerConnection, type: 'offer' | 'answer') {
 }
 
 // No external ICE service is contacted in the local pilot. TURN/SFU deployment is a separate gate.
-export function createVideoSession(options: { student: string; session: string; notice: string } | { session: string; stream: string }, cb: Callbacks, api = videoApi) {
+export function createVideoSession(options: { student: string; session: string; notice: string; camera?: MediaStream } | { session: string; stream: string }, cb: Callbacks, api = videoApi) {
   const publishing = 'student' in options;
   const id = publishing ? crypto.randomUUID() : options.stream;
   const viewerId = publishing ? null : crypto.randomUUID();
@@ -75,7 +75,12 @@ export function createVideoSession(options: { student: string; session: string; 
         if (!window.isSecureContext || !window.RTCPeerConnection) throw new Error('Live video needs HTTPS or localhost and WebRTC support.');
         if (publishing) {
           cb.state('Waiting for camera permission…');
-          const acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 15 }, facingMode: 'user' } });
+          // Own only video-track clones when using the shared camera. Stopping publication
+          // must not stop local analysis or the independent observation channel.
+          if (options.camera && !options.camera.getVideoTracks().some(t => t.readyState === 'live')) throw new Error('Start the camera before sharing live video.');
+          const acquired = options.camera
+            ? new MediaStream(options.camera.getVideoTracks().filter(t => t.readyState === 'live').map(t => t.clone()))
+            : await navigator.mediaDevices.getUserMedia({ audio: false, video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 15 }, facingMode: 'user' } });
           if (closed) { acquired.getTracks().forEach(t => t.stop()); return; }
           media = acquired; media.getTracks().forEach(t => t.addEventListener('ended', () => fail(new Error('Camera stopped or permission was revoked.')))); cb.media(media);
           await api.start(options.student, options.session, id, options.notice);

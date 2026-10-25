@@ -1,5 +1,8 @@
 # Phase 3B: voluntary webcam observation sharing
 
+> UI update: the student camera controls are now unified. The phase-specific steps below describe the original UI; use the [current unified-camera guide](phase3c-live-video.md) for testing. Observation sharing and live video have independent switches; deleting observations no longer stops the camera or live video.
+
+
 Phase 3A runs face visibility and approximate head-direction detection in the student's browser. Phase 3B adds explicit sharing with the student's class teachers and admins, plus student summaries and optional grouped checks. Photo/manual attendance is unchanged. The Live monitoring page now shows actual opt-in connections and observations instead of its scripted camera demonstration.
 
 ## Scope and limits

@@ -1,5 +1,8 @@
 # Phase 3A — 웹캠 얼굴·머리 움직임 로컬 테스트
 
+> 화면 통합 안내: 아래 단계별 설명은 당시 UI 기준입니다. 현재 테스트는 [통합 카메라 가이드](phase3c-live-video.ko.md)를 따라주세요. 관찰 이벤트와 실시간 영상 공유를 각각 켜고 끌 수 있으며, 관찰 기록 삭제는 카메라나 영상 공유를 중단하지 않습니다.
+
+
 [English implementation guide](phase3a-webcam-events.md)
 
 브랜치: `DoJun/phase3a-webcam-events`. Phase 2D 커밋 `1505eee`에서 분리했으며 Phase 2 PR #33에 이번 작업은 포함되지 않습니다.

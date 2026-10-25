@@ -2,7 +2,7 @@ export type FrameResult = {
   type: 'result'; timestamp: number; count: number; matrix: number[] | null; inferenceMs: number;
   boxes: { x: number; y: number; width: number; height: number }[];
 };
-type Callbacks = { onState: (state: string) => void; onFrame: (result: FrameResult) => void; onFailure: (message: string) => void; onUnavailable?: () => void };
+type Callbacks = { onState: (state: string) => void; onFrame: (result: FrameResult) => void; onFailure: (message: string) => void; onUnavailable?: () => void; onMedia?: (stream: MediaStream | null) => void };
 
 export function createCameraSession(video: HTMLVideoElement, callbacks: Callbacks) {
   let closed = false, worker: Worker | null = null, stream: MediaStream | null = null;
@@ -21,6 +21,7 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
     clearTimeout(timer); clearTimeout(watchdog);
     worker?.terminate(); worker = null;
     stream?.getTracks().forEach(track => track.stop()); stream = null;
+    callbacks.onMedia?.(null);
     video.pause(); video.srcObject = null;
   }
   function fail(message: string) {
@@ -68,7 +69,7 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
           callbacks.onState('Waiting for camera permission…');
           armTimeout(30000, 'Camera permission or playback timed out. Allow camera access and restart.');
           try {
-            const acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+            const acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 15 } } });
             if (closed) { acquired.getTracks().forEach(t => t.stop()); return; }
             stream = acquired;
             stream.getVideoTracks().forEach(track => {
@@ -80,6 +81,7 @@ export function createCameraSession(video: HTMLVideoElement, callbacks: Callback
             await video.play();
             if (closed) return;
             clearTimeout(watchdog); ready = true; lastFrameAt = performance.now();
+            callbacks.onMedia?.(acquired);
             callbacks.onState('Camera running · local analysis');
             void frame();
           } catch (error) {

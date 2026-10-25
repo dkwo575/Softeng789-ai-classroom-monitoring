@@ -1,5 +1,8 @@
 # Phase 3A — local webcam observations
 
+> UI update: the student camera controls are now unified. The phase-specific steps below describe the original UI; use the [current unified-camera guide](phase3c-live-video.md) for testing. Observation sharing and live video have independent switches; deleting observations no longer stops the camera or live video.
+
+
 [한국어 가이드](phase3a-webcam-events.ko.md)
 
 Branch: `DoJun/phase3a-webcam-events`, based on Phase 2D `1505eee`. Phase 2 PR #33 remains separate. No Phase 3 commit, push, deployment or backend/database migration is included in this implementation.

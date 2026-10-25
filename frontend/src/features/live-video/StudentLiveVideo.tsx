@@ -1,38 +1,65 @@
 import { useEffect, useRef, useState } from 'react';
-import { videoApi, type Workspace } from './api';
+import type { Workspace } from './api';
 import { createVideoSession } from './peerSession';
 import './liveVideo.css';
 
-export default function StudentLiveVideo({ studentId }: { studentId: string }) {
-  const [workspace, setWorkspace] = useState<Workspace | null>(null), [selected, setSelected] = useState('');
-  const [consent, setConsent] = useState(false), [active, setActive] = useState(false), [error, setError] = useState('');
-  const [state, setState] = useState('Video off'), [viewer, setViewer] = useState<string | null>(null);
-  const video = useRef<HTMLVideoElement>(null), current = useRef<ReturnType<typeof createVideoSession> | null>(null);
-  useEffect(() => { let cancelled = false; videoApi.workspace(studentId).then(w => { if (!cancelled) setWorkspace(w); }).catch(e => { if (!cancelled) setError(e.message); }); return () => { cancelled = true; }; }, [studentId]);
-  function stop() { const old = current.current; current.current = null; void old?.stop(); setActive(false); setState('Video off'); setViewer(null); }
-  useEffect(() => { const leave = () => stop(); window.addEventListener('pagehide', leave); return () => { window.removeEventListener('pagehide', leave); const old = current.current; current.current = null; void old?.stop(); }; }, []);
-  function start() {
-    if (!workspace?.enabled || !consent || !selected || current.current) return;
-    setError(''); setActive(true);
-    const run = createVideoSession({ student: studentId, session: selected, notice: workspace.noticeVersion }, {
-      state: setState, viewer: setViewer,
-      media: stream => { if (video.current) { video.current.srcObject = stream; if (stream) void video.current.play().catch(() => {}); } },
-      failed: message => { current.current = null; setActive(false); setViewer(null); setState('Video off · interrupted'); setError(message); }
-    }); current.current = run; void run.start();
+type Props = { studentId: string; camera: MediaStream | null; selected: string; workspace: Workspace | null };
+
+// Camera ownership belongs to the classroom panel; this control owns only publication.
+export default function StudentLiveVideo({ studentId, camera, selected, workspace }: Props) {
+  const [sharing, setSharing] = useState(false), [error, setError] = useState('');
+  const [state, setState] = useState('Live video sharing off'), [viewer, setViewer] = useState<string | null>(null);
+  const current = useRef<ReturnType<typeof createVideoSession> | null>(null);
+  const closing = useRef<Promise<void>>(Promise.resolve());
+
+  function stopPublication() {
+    const run = current.current; current.current = null;
+    if (run) closing.current = run.stop();
   }
-  return <section className="live-video" aria-label="Share live video">
-    <h2>Share live video · Phase 3C</h2>
-    <p>Optional adult pilot. Share your camera with an authorized teacher/admin for this class. Audio is off; this app does not record video or change attendance. Video sharing is separate from the webcam movement test.</p>
-    <p>Direct connections can reveal network addresses to the other participant. Keep other people out of view unless they agree. Your account name does not verify who is on camera.</p>
-    {error && <p role="alert">{error}</p>}
-    {!workspace ? <p>Loading video availability…</p> : !workspace.enabled ? <p>Live video is disabled on this server.</p> : <>
-      <label>Video class<select value={selected} disabled={active} onChange={e => setSelected(e.target.value)}><option value="">Choose a class</option>{workspace.sessions.map(s => <option key={s.id} value={s.id} disabled={!s.open}>{s.course} · {new Date(s.startTime).toLocaleString()}{s.open ? '' : ' (closed)'}</option>)}</select></label>
-      <label><input type="checkbox" checked={consent} onChange={e => { setConsent(e.target.checked); if (!e.target.checked) stop(); }} /> I am 18 or older and voluntarily agree to share live video with my class teacher/admin. I can stop at any time.</label>
-      <div className="live-video__controls"><button className="btn" disabled={active || !consent || !selected} onClick={start}>Start sharing live video</button><button className="btn" disabled={!active} onClick={stop}>Stop sharing live video</button>
-        <button className="btn" disabled={active} onClick={() => { setError(''); void videoApi.workspace(studentId).then(setWorkspace).catch(e => setError(e.message)); }}>Refresh video classes</button></div>
-    </>}
+  useEffect(() => {
+    if (!camera) { setSharing(false); setState('Live video sharing off'); setViewer(null); }
+  }, [camera]);
+  useEffect(() => {
+    if (!camera || !sharing || !workspace?.enabled) return;
+    let cancelled = false;
+    let run: ReturnType<typeof createVideoSession> | null = null;
+    setError(''); setState('Starting live video sharing…');
+    void (async () => {
+      await closing.current;
+      if (cancelled) return;
+      run = createVideoSession({ student: studentId, session: selected, notice: workspace.noticeVersion, camera }, {
+        state: text => { if (!cancelled) setState(text); },
+        viewer: name => { if (!cancelled) setViewer(name); },
+        media: () => {},
+        failed: message => {
+          if (!cancelled) { setSharing(false); setViewer(null); setState('Live video interrupted · camera continues'); setError(message); }
+        }
+      });
+      current.current = run;
+      void run.start();
+    })();
+    return () => {
+      cancelled = true;
+      if (run) closing.current = run.stop();
+      if (current.current === run) current.current = null;
+    };
+  }, [camera, sharing, workspace, studentId, selected]);
+  useEffect(() => {
+    const leave = () => { stopPublication(); setSharing(false); setViewer(null); };
+    window.addEventListener('pagehide', leave);
+    return () => { window.removeEventListener('pagehide', leave); stopPublication(); };
+  }, []);
+
+  return <fieldset className="live-video" aria-label="Live video sharing">
+    <legend>Live video sharing</legend>
+    <p>Send video to your authorized class teacher/admin. Audio is off; this app does not record video or change attendance. Direct connections can reveal network addresses to the viewer. Your account name does not verify who is on camera.</p>
+    {!workspace ? <p>Loading video availability…</p> : !workspace.enabled ? <p>Live video is disabled on this server.</p> : null}
+    <label><input type="checkbox" checked={sharing} disabled={!camera || !workspace?.enabled || !workspace.sessions.some(s => s.id === selected && s.open)} onChange={e => {
+      setSharing(e.target.checked);
+      if (!e.target.checked) { stopPublication(); setViewer(null); setState('Live video sharing off · camera continues'); }
+    }} /> Share live video — I voluntarily agree to share with my class teacher/admin. I can stop at any time.</label>
     <p role="status">{state}{viewer ? ` · Viewer: ${viewer}` : ''}</p>
-    <video ref={video} hidden={!active} muted autoPlay playsInline aria-label="Live sharing preview" />
-    <small>Local network pilot: maximum four students per class and one teacher viewer per student. Closing this panel, leaving the page or stopping releases the camera.</small>
-  </section>;
+    {error && <p role="alert">{error}</p>}
+    <small>Start the camera before enabling sharing. Turning this off keeps local analysis and observation event sharing running. Local network pilot: maximum four students per class and one teacher viewer per student.</small>
+  </fieldset>;
 }

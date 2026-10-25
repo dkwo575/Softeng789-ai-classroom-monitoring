@@ -49,7 +49,7 @@ device; attendance, sleep and attention are not inferred. Sharing is disabled by
 
 ## System Architecture
 
-Phase 3C adds separately consented **live video sharing**: up to four students send video directly
+Phase 3C adds separately consented **live video sharing** inside one **Open classroom camera** panel. Students start one camera, then independently toggle observation events and live video. Stopping either sharing channel keeps the other running; stopping the camera ends both. Capacity: up to four students send video directly
 to an authorized teacher browser using WebRTC. The local pilot uses the existing API for temporary
 signaling, has no recording/audio, and leaves photo attendance and Phase 3B independent. Disabled by
 default with `LIVE_VIDEO_ENABLED=false`; no new database migration. See the
