@@ -1,3 +1,4 @@
+import { StudentLiveVideoEntry } from '../../features/live-video';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConsentPanel, StudentCheckInPanel } from '../../features/photo-attendance';
 import { WebcamEventsEntry } from '../../features/webcam-events';
@@ -526,7 +527,7 @@ export default function MobileStudentPortal(props: Props) {
 
       <main id="mobile-student-main" className="mobile-student-main" tabIndex={-1}>
         {props.errors.length > 0 && <output className="mobile-student-data-warning"><span>Some information did not load.</span><button type="button" disabled={props.loading} onClick={props.onRetry}>{props.loading ? 'Retrying…' : 'Try again'}</button></output>}
-        {props.view === 'overview' && <><MobileHome {...props} /><ConsentPanel studentId={props.user.id} /><StudentCheckInPanel key={props.user.id} studentId={props.user.id} /><WebcamEventsEntry key={`webcam-${props.user.id}`} studentId={props.user.id} /></>}
+        {props.view === 'overview' && <><MobileHome {...props} /><ConsentPanel studentId={props.user.id} /><StudentCheckInPanel key={props.user.id} studentId={props.user.id} /><WebcamEventsEntry key={`webcam-${props.user.id}`} studentId={props.user.id} /><StudentLiveVideoEntry key={`video-${props.user.id}`} studentId={props.user.id} /></>}
         {props.view === 'attendance' && <MobileAttendance {...props} />}
         {props.view === 'schedule' && <StudentScheduleView schedule={props.schedule} loading={props.loading} loadError={props.scheduleError} onRetry={props.onRetry} onRequestLeave={(session) => props.onContactSchool({ type: 'LEAVE', sessionId: session.id })} />}
         {props.view === 'feedback' && <MobileFeedback {...props} />}

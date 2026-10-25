@@ -49,7 +49,13 @@ device; attendance, sleep and attention are not inferred. Sharing is disabled by
 
 ## System Architecture
 
-A responsive React web app talks only to the Spring Boot Education Server, which owns PostgreSQL and
+Phase 3C adds separately consented **live video sharing**: up to four students send video directly
+to an authorized teacher browser using WebRTC. The local pilot uses the existing API for temporary
+signaling, has no recording/audio, and leaves photo attendance and Phase 3B independent. Disabled by
+default with `LIVE_VIDEO_ENABLED=false`; no new database migration. See the
+[English guide](docs/phase3c-live-video.md) and [한국어 테스트 가이드](docs/phase3c-live-video.ko.md).
+
+A responsive React web app sends application API requests to the Spring Boot Education Server, which owns PostgreSQL and
 reaches AI capability through gateway interfaces. FastAPI hosts the optional CPU photo-attendance
 service and legacy contract mocks; CARES integration remains separate. See
 [`docs/architecture.md`](docs/architecture.md) for the broader architecture, the

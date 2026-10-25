@@ -27,6 +27,9 @@ spring:
 webcam:
   sharing-enabled: ${WEBCAM_SHARING_ENABLED:false}
 
+live-video:
+  enabled: ${LIVE_VIDEO_ENABLED:false}
+
 cv:
   enabled: ${CV_ENABLED:false}
   service-url: ${CV_SERVICE_URL:http://127.0.0.1:8000}

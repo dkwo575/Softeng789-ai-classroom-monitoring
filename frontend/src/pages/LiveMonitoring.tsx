@@ -1,3 +1,4 @@
+import { TeacherLiveVideo } from '../features/live-video';
 import TeacherObservationsPanel from '../features/webcam-events/TeacherObservationsPanel';
 import { useMemo, useState } from 'react';
 import BackButton from '../components/BackButton';
@@ -35,7 +36,7 @@ export default function LiveMonitoring({ console: c }: { readonly console: Conso
       <h1>{sessionDisplayName(c.activeSession)}</h1>
       <p>{c.activeSession.dateLabel} · {c.activeSession.time} · {sessionRoomLabel(c.activeSession)}</p>
       {c.activeSession.recordId
-        ? <TeacherObservationsPanel key={c.activeSession.recordId} sessionId={c.activeSession.recordId} />
+        ? <><TeacherLiveVideo key={`video-${c.activeSession.recordId}`} sessionId={c.activeSession.recordId} /><TeacherObservationsPanel key={c.activeSession.recordId} sessionId={c.activeSession.recordId} /></>
         : <p>Choose a saved classroom session to view shared observations.</p>}
     </div>
   );
