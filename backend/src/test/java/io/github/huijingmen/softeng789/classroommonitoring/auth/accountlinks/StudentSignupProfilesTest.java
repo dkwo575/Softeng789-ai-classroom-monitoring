@@ -149,4 +149,71 @@ class StudentSignupProfilesTest {
         assertThat(authService.login(new LoginRequest(s.getStudentNumber(),"correct-password")).id()).isEqualTo(s.getId());
         assertThat(authService.login(new LoginRequest(s.getUniversityEmail(),"correct-password")).id()).isEqualTo(s.getId());
     }
+
+    @Autowired io.github.huijingmen.softeng789.classroommonitoring.vision.RegistrationFaceService registrationFaces;
+
+    void pendingFaceMetadata(Student s) {
+        em.flush();
+        // Metadata fixture only: never create a face capture or template in this regression.
+        registrationFaces.save(s.getId(),
+                new io.github.huijingmen.softeng789.classroommonitoring.vision.RegistrationFaceService.Prepared("FACE",null,Instant.now()));
+        em.flush();
+    }
+
+    @Test void pendingFaceStudentCannotAddMinorDobAndProfileRemainsUnchanged() {
+        var s=student(); pendingFaceMetadata(s);
+        var oldVersion=s.getVersion();
+        assertThatThrownBy(() -> profiles.update(s.getId(),
+                new UpdateSelfProfileRequest(oldVersion,input(true,"guardian@example.test"))))
+                .isInstanceOfSatisfying(org.springframework.web.server.ResponseStatusException.class, error -> {
+                    assertThat(error.getStatusCode().value()).isEqualTo(400);
+                    assertThat(error.getReason()).contains("Switch to manual attendance");
+                });
+        em.clear();
+        assertThat(students.findById(s.getId()).orElseThrow().getDateOfBirth()).isNull();
+        assertThat(guardians.findById(s.getId())).isEmpty();
+        assertThat(registrationFaces.summary(s.getId()).attendanceMode()).isEqualTo("FACE");
+    }
+
+    @Test void minorFaceApprovalIsBlockedEvenAfterAllGuardianChecks() {
+        var s=student(); profiles.register(s,input(true,"guardian@example.test"),true,true);
+        em.flush(); pendingFaceMetadata(s);
+        var admin=new Teacher(); admin.setStaffNumber("A-"+UUID.randomUUID());
+        admin.setEmail(UUID.randomUUID()+"@admin.test"); admin.setName("Admin"); admin.setRole("ADMIN");
+        admin=teachers.saveAndFlush(admin);
+        var g=guardians.findById(s.getId()).orElseThrow();
+        g.verify(StudentSignupProfiles.GUARDIAN_NOTICE);
+        g.confirmRelationship(admin.getId(),"IN_PERSON"); em.flush();
+        UUID adminId=admin.getId();
+        assertThatThrownBy(() -> studentService.approveStudent(s.getId(),adminId,true))
+                .hasMessageContaining("Switch to manual attendance");
+        em.clear();
+        assertThat(students.findById(s.getId()).orElseThrow().getApprovalStatus()).isEqualTo("PENDING");
+        assertThat(registrationFaces.summary(s.getId()).faceReviewState()).isEqualTo("PENDING");
+    }
+
+    @Test void switchingToManualAllowsAddingMinorDobWithoutGrantingFaceConsent() {
+        var s=student(); pendingFaceMetadata(s);
+        registrationFaces.useManual(s.getId()); em.flush();
+        var result=profiles.update(s.getId(),new UpdateSelfProfileRequest(s.getVersion(),input(true,"guardian@example.test")));
+        assertThat(result.dateOfBirth()).isEqualTo(input(true,null).dateOfBirth());
+        assertThat(result.guardian().emailVerifiedAt()).isNull();
+        assertThat(students.findById(s.getId()).orElseThrow().isConsentGiven()).isFalse();
+        assertThat(registrationFaces.summary(s.getId()).attendanceMode()).isEqualTo("MANUAL");
+    }
+
+    @Test void adultDobCanStillBeAddedToPendingFaceRegistration() {
+        var s=student(); pendingFaceMetadata(s);
+        var result=profiles.update(s.getId(),new UpdateSelfProfileRequest(s.getVersion(),input(false,null)));
+        assertThat(result.dateOfBirth()).isEqualTo(input(false,null).dateOfBirth());
+        assertThat(registrationFaces.summary(s.getId()).attendanceMode()).isEqualTo("FACE");
+    }
+
+    @Test void legacyFaceConsentAlsoBlocksAddingMinorDobWithoutARegistrationFaceRow() {
+        var s=student(); s.setConsentGiven(true); students.saveAndFlush(s);
+        assertThatThrownBy(() -> profiles.update(s.getId(),
+                new UpdateSelfProfileRequest(s.getVersion(),input(true,"guardian@example.test"))))
+                .hasMessageContaining("Switch to manual attendance");
+        assertThat(s.getDateOfBirth()).isNull();
+    }
 }

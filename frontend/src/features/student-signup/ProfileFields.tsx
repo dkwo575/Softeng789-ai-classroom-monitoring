@@ -5,7 +5,14 @@ export default function ProfileFields({ value, onChange, disabled = false, birth
   value: ProfileInput; onChange: (value: ProfileInput) => void; disabled?: boolean; birthLocked?: boolean; guardianLocked?: boolean; requireBirth?: boolean;
 }) {
   const minor = isMinor(value.dateOfBirth);
-  const change = (key: keyof Omit<ProfileInput, 'guardian'>, text: string) => onChange({ ...value, [key]: text });
+  const emptyGuardian = () => ({ name: '', relationship: '', email: '', phone: '' });
+  // Derive the visible required fields even when an existing draft has a minor DOB and no guardian.
+  const guardian = value.guardian ?? (minor && !guardianLocked ? emptyGuardian() : null);
+  const change = (key: keyof Omit<ProfileInput, 'guardian'>, text: string) => onChange({
+    ...value, [key]: text,
+    guardian: key === 'dateOfBirth' && isMinor(text) && !guardianLocked
+      ? value.guardian ?? emptyGuardian() : value.guardian,
+  });
   return <fieldset className="signup-profile-fields" disabled={disabled}>
     <legend>Student details</legend>
     <div className="self-profile-grid">
@@ -21,13 +28,10 @@ export default function ProfileFields({ value, onChange, disabled = false, birth
         onChange={event => change('address', event.target.value)} /></label>
     </div>
     {birthLocked && <p>Contact the school to correct your name or date of birth.</p>}
-    <label className="self-profile-check"><input type="checkbox" checked={!!value.guardian} disabled={guardianLocked || minor}
-      onChange={event => onChange({ ...value, guardian: event.target.checked ? { name: '', relationship: '', email: '', phone: '' } : null })} />
+    <label className="self-profile-check"><input type="checkbox" checked={!!guardian} disabled={guardianLocked || minor}
+      onChange={event => onChange({ ...value, guardian: event.target.checked ? emptyGuardian() : null })} />
       Add a parent or guardian {minor ? '(required for students under 18)' : '(optional)'}</label>
-    {minor && !value.guardian && <button type="button" className="btn" onClick={() => onChange({
-      ...value, guardian: { name: '', relationship: '', email: '', phone: '' },
-    })}>Enter guardian details</button>}
-    {value.guardian && <fieldset disabled={guardianLocked}>
+    {guardian && <fieldset disabled={guardianLocked}>
       <legend>Parent or guardian</legend>
       <p>The guardian verifies their email and gives signup permission separately. The school confirms the relationship.
         This does not give permission for face processing, local camera analysis, observation sharing or live video.</p>
@@ -35,10 +39,10 @@ export default function ProfileFields({ value, onChange, disabled = false, birth
         ['name', 'Guardian name', 'text', 160], ['relationship', 'Relationship to student', 'text', 80],
         ['email', 'Guardian email', 'email', 255], ['phone', 'Guardian phone', 'tel', 40],
       ] as const).map(([key, label, type, maxLength]) => <label key={key} className="field">{label}
-        <input required type={type} maxLength={maxLength} value={value.guardian![key]}
-          onChange={event => onChange({ ...value, guardian: { ...value.guardian!, [key]: event.target.value } })} />
+        <input required type={type} maxLength={maxLength} value={guardian[key]}
+          onChange={event => onChange({ ...value, guardian: { ...guardian, [key]: event.target.value } })} />
       </label>)}</div>
     </fieldset>}
-    {guardianLocked && <p>Contact the school to change verified guardian details.</p>}
+    {guardianLocked && value.guardian && <p>Contact the school to change verified guardian details.</p>}
   </fieldset>;
 }

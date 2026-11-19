@@ -48,7 +48,7 @@ export default function LoginForm({
             autoComplete="username"
             value={email}
             onChange={(event) => onEmailChange(event.target.value)}
-            placeholder="you@auckland.ac.nz"
+            placeholder="Student ID or email"
           />
         </label>
 

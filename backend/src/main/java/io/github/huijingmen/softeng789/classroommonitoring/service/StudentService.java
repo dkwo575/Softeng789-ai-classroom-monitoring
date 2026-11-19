@@ -1,5 +1,6 @@
 package io.github.huijingmen.softeng789.classroommonitoring.service;
 
+import io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.CreateStudentRequest;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.FaceEnrollmentCaptureResponse;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.PendingStudentResponse;
@@ -46,7 +47,7 @@ public class StudentService {
     private final SessionAuthService sessionAuthService;
     private final TeacherScopeSupport teacherScopeSupport;
     private final RegistrationFaceService registrationFaces;
-    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
+    private final StudentSignupProfiles signupProfiles;
 
     public StudentService(
             StudentRepository studentRepository,
@@ -57,7 +58,7 @@ public class StudentService {
             SessionAuthService sessionAuthService,
             TeacherScopeSupport teacherScopeSupport,
             RegistrationFaceService registrationFaces,
-            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
+            StudentSignupProfiles signupProfiles
     ) {
         this.registrationFaces = registrationFaces;
         this.signupProfiles = signupProfiles;

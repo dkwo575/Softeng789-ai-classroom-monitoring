@@ -1,5 +1,6 @@
 package io.github.huijingmen.softeng789.classroommonitoring.service;
 
+import io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.AuthResponse;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.LoginRequest;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.RegisterStudentRequest;
@@ -52,7 +53,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final SessionAuthService sessionAuthService;
     private final AccountLinkProofs accountLinks;
-    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
+    private final StudentSignupProfiles signupProfiles;
 
     public AuthService(
             StudentRepository studentRepository,
@@ -66,7 +67,7 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             RegistrationFaceService registrationFaces,
             AccountLinkProofs accountLinks,
-            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
+            StudentSignupProfiles signupProfiles
     ) {
         this.registrationFaces = registrationFaces;
         this.studentRepository = studentRepository;

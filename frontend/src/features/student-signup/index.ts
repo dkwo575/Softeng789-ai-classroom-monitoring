@@ -5,3 +5,6 @@ export type { ProfileInput, SelfProfile } from './profileApi';
 export { isMinor, profileIssue } from './profileFormModel';
 
 export { default as GuardianReview } from './GuardianReview';
+
+export { useSignupReviews } from './useSignupReviews';
+export { checkingSignup, registrationReadiness } from './signupReviewModel';

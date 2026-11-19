@@ -1,5 +1,6 @@
 package io.github.huijingmen.softeng789.classroommonitoring.controller;
 
+import io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.CreateStudentRequest;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.FaceEnrollmentCaptureResponse;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.FaceEnrollmentResponse;
@@ -36,7 +37,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 @RestController
 @RequestMapping("/api/students")
 public class StudentController {
-    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
+    private final StudentSignupProfiles signupProfiles;
     private final StudentService studentService;
     private final StudentDirectoryService studentDirectoryService;
     private final FaceEnrollmentService faceEnrollmentService;
@@ -51,7 +52,7 @@ public class StudentController {
             SessionAuthService sessionAuthService,
             StaffAccessService staffAccessService,
             ProtectedMediaService protectedMediaService,
-            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
+            StudentSignupProfiles signupProfiles
     ) {
         this.signupProfiles = signupProfiles;
         this.studentService = studentService;

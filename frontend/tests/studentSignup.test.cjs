@@ -90,3 +90,154 @@ test('guardian screen never confirms on inspection and submits only explicit per
   finish(); await submitted;
   assert.ok(nodes(render()).some(node => node.props?.role === 'status'));
 });
+
+const reviewModel = load('signupReviewModel.ts');
+const verifiedGuardian = { name: 'Guardian', relationship: 'Parent', email: 'g@example.test', phone: '020000000',
+  emailVerifiedAt: 'now', signupConsentedAt: 'now', relationshipConfirmedAt: 'now', revision: 'rev' };
+const selfProfile = { ...adult, signupChecksRequired: true, loginEmail: 's@example.test', guardian: verifiedGuardian };
+
+test('approval readiness excludes each pending guardian step and preserves exempt accounts', () => {
+  const manual = { attendanceMode: 'MANUAL' };
+  for (const [field, expected] of [
+    ['emailVerifiedAt', /email verification pending/],
+    ['signupConsentedAt', /signup permission pending/],
+    ['relationshipConfirmedAt', /relationship confirmation pending/],
+  ]) {
+    const profile = { ...selfProfile, guardian: { ...verifiedGuardian, [field]: null } };
+    const status = reviewModel.signupReviewStatus(profile);
+    assert.equal(status.ready, false);
+    assert.match(status.label, expected);
+    assert.equal(reviewModel.registrationReadiness(manual, status).ready, false);
+    assert.equal(reviewModel.signupReviewStatus({ ...profile, signupChecksRequired: false }).ready, true);
+  }
+  assert.equal(reviewModel.signupReviewStatus({ ...selfProfile, guardian: null }).ready, true);
+  assert.equal(reviewModel.signupReviewStatus({ ...selfProfile, dateOfBirth: '2020-01-01', guardian: null }).ready, false);
+  assert.equal(reviewModel.signupReviewStatus({ ...selfProfile, loginEmail: ' G@EXAMPLE.TEST ' }).ready, false);
+  assert.equal(reviewModel.signupReviewStatus(selfProfile).ready, true);
+});
+
+test('unknown guardian status and minor face registration cannot be counted as ready', () => {
+  const face = { attendanceMode: 'FACE', faceReviewState: 'PENDING' };
+  assert.equal(reviewModel.registrationReadiness(face).ready, false);
+  assert.equal(reviewModel.registrationReadiness(face, reviewModel.unavailableSignup).ready, false);
+  const minor = reviewModel.signupReviewStatus({ ...selfProfile, dateOfBirth: '2020-01-01' });
+  assert.equal(minor.ready, true);
+  assert.equal(reviewModel.registrationReadiness(face, minor).ready, false);
+  assert.equal(reviewModel.registrationReadiness({ attendanceMode: 'MANUAL' }, minor).ready, true);
+  assert.equal(reviewModel.registrationReadiness({ ...face, faceReviewState: 'EXPIRED' },
+    reviewModel.signupReviewStatus(selfProfile)).ready, false);
+});
+
+test('minor DOB immediately opens checked guardian fields and keeps existing guardian input', () => {
+  const Fields = load('ProfileFields.tsx', { 'react/jsx-runtime': require('react/jsx-runtime') }).default;
+  let value = adult;
+  const props = () => ({ value, onChange: next => { value = next; } });
+  let view = Fields(props());
+  nodes(view).find(node => node.type === 'input' && node.props.type === 'date').props.onChange({ target: { value: '2020-01-01' } });
+  view = Fields(props());
+  const toggle = nodes(view).find(node => node.type === 'input' && node.props.type === 'checkbox');
+  assert.equal(toggle.props.checked, true);
+  assert.equal(toggle.props.disabled, true);
+  assert.ok(nodes(view).some(node => node.type === 'legend' && node.props.children === 'Parent or guardian'));
+  assert.equal(nodes(view).some(node => node.type === 'button'), false);
+  assert.equal(value.guardian.email, '');
+  value = { ...value, guardian: { ...verifiedGuardian } };
+  view = Fields(props());
+  nodes(view).find(node => node.type === 'input' && node.props.type === 'date').props.onChange({ target: { value: '2021-01-01' } });
+  assert.equal(value.guardian.email, verifiedGuardian.email);
+  // Loaded legacy minor drafts with no guardian also show the fields without a second button.
+  view = Fields({ value: { ...adult, dateOfBirth: '2020-01-01' }, onChange() {} });
+  assert.ok(nodes(view).some(node => node.type === 'legend' && node.props.children === 'Parent or guardian'));
+});
+
+test('approved students without a guardian see no verified-guardian change warning', () => {
+  const Fields = load('ProfileFields.tsx', { 'react/jsx-runtime': require('react/jsx-runtime') }).default;
+  const render = guardian => JSON.stringify(Fields({ value: { ...adult, guardian }, guardianLocked: true, onChange() {} }));
+  assert.equal(render(null).includes('Contact the school to change verified guardian details.'), false);
+  assert.equal(render(verifiedGuardian).includes('Contact the school to change verified guardian details.'), true);
+});
+
+test('review dialog shows guardian pending reason and disables approval before an attempted write', () => {
+  const react = { ...require('react'), useState: initial => [initial, () => {}], useEffect() {} };
+  const pending = reviewModel.signupReviewStatus({ ...selfProfile, guardian: { ...verifiedGuardian, relationshipConfirmedAt: null } });
+  const Review = load('../../components/auth/RegistrationReview.tsx', {
+    react, 'react/jsx-runtime': require('react/jsx-runtime'),
+    '../../features/student-signup': { useSignupReviews: () => ({ student: pending }),
+      registrationReadiness: reviewModel.registrationReadiness, checkingSignup: reviewModel.checkingSignup },
+    '../Modal': () => null,
+    '../../lib/apiClient': { request() { throw Error('Unexpected API call'); }, apiMessage: String },
+  }).default;
+  const view = Review({ student: { id: 'student', fullName: 'Student', requestedClasses: [], attendanceMode: 'MANUAL' },
+    busy: false, error: '', onClose() {}, onApprove() { throw Error('Unexpected approval'); } });
+  assert.ok(JSON.stringify(view).includes('Guardian relationship confirmation pending'));
+  assert.equal(nodes(view.props.footer).find(node => node.type === 'button' && node.props.children === 'Approve registration').props.disabled, true);
+});
+
+test('admin queue excludes guardian-pending rows from ready count and shows their reason', () => {
+  const pending = [
+    { id: 'pending', fullName: 'Pending', studentNumber: 'P1', universityEmail: 'p@example.test', requestedClasses: [], attendanceMode: 'MANUAL', createdAt: '' },
+    { id: 'ready', fullName: 'Ready', studentNumber: 'R1', universityEmail: 'r@example.test', requestedClasses: [], attendanceMode: 'MANUAL', createdAt: '' },
+  ];
+  let stateIndex = 0;
+  const react = { ...require('react'), useState(initial) {
+    const index = stateIndex++;
+    return [index === 1 ? pending : index === 3 ? false : typeof initial === 'function' ? initial() : initial, () => {}];
+  }, useEffect() {}, useCallback: callback => callback, useMemo: compute => compute() };
+  const statuses = {
+    pending: reviewModel.signupReviewStatus({ ...selfProfile, guardian: { ...verifiedGuardian, relationshipConfirmedAt: null } }),
+    ready: reviewModel.signupReviewStatus({ ...selfProfile, guardian: null }),
+  };
+  const mocks = { react, 'react/jsx-runtime': require('react/jsx-runtime'),
+    '../features/student-signup': { GuardianReview: 'GuardianReview', useSignupReviews: () => statuses,
+      registrationReadiness: reviewModel.registrationReadiness, checkingSignup: reviewModel.checkingSignup },
+    '../lib/apiClient': { apiMessage: String },
+    '../lib/format': { avatarTone: () => '', formatDateTime: () => '', statusClass: () => '' },
+    '../lib/studentApi': { listPendingStudents() {}, approveStudent() {}, rejectStudent() {} },
+    '../lib/table': { sortRows: rows => rows, useSort: () => ({ sort: {}, toggle() {} }),
+      usePagination: rows => ({ rows, pageCount: 1 }) },
+    '../components/icons': { IconUserPlus: 'Icon' },
+  };
+  for (const name of ['Modal', 'Pager', 'PersonAvatar', 'SearchField', 'SelectMenu', 'SortableHeader', 'auth/RegistrationReview'])
+    mocks['../components/' + name] = name;
+  const Queue = load('../../pages/AdminRegistrations.tsx', mocks).default;
+  const view = Queue();
+  const ready = nodes(view).find(node => node.props?.className === 'registration-review-summary__ready');
+  assert.equal(nodes(ready).find(node => node.type === 'strong').props.children, 1);
+  const rows = nodes(view).filter(node => node.type === 'tr' && node.props.className);
+  assert.equal(rows[0].props.className, 'registration-row');
+  assert.ok(JSON.stringify(rows[0]).includes('Guardian relationship confirmation pending'));
+  assert.equal(rows[1].props.className, 'registration-row registration-row--ready');
+});
+
+test('guardian status loading is bounded and stale results cannot restore old readiness', async () => {
+  let snapshot; let effect; let cleanup; let previousKey;
+  const requests = [];
+  const react = { useState(initial) {
+    snapshot ??= initial;
+    return [snapshot, next => { snapshot = typeof next === 'function' ? next(snapshot) : next; }];
+  }, useEffect(callback, [key]) {
+    if (key !== previousKey) { previousKey = key; effect = callback; }
+  } };
+  const hook = load('useSignupReviews.ts', { react, './profileApi': {
+    getSignupReview: id => new Promise((resolve, reject) => requests.push({ id, resolve, reject })),
+  } }).useSignupReviews;
+  assert.equal(Object.keys(hook(['a', 'b', 'c', 'd', 'e'])).length, 0);
+  cleanup = effect();
+  assert.equal(requests.length, 4);
+  requests[0].resolve(selfProfile);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests.length, 5);
+  assert.equal(hook(['a', 'b', 'c', 'd', 'e']).a.ready, true);
+  // An explicit refresh immediately drops the previously verified result.
+  assert.equal(Object.keys(hook(['a'], 1)).length, 0);
+  cleanup(); cleanup = effect();
+  requests[1].resolve(selfProfile); // completion from the old queue must be ignored
+  requests.at(-1).reject(Error('Unavailable'));
+  await new Promise(resolve => setImmediate(resolve));
+  const current = hook(['a'], 1);
+  assert.equal(current.a.ready, false);
+  assert.match(current.a.label, /unavailable/);
+  assert.equal(current.b, undefined);
+  cleanup();
+  requests.slice(2, 5).forEach(request => request.resolve(selfProfile));
+});

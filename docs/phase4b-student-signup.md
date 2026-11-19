@@ -147,3 +147,33 @@ to the newly supplied number is insufficient. Duplicate names are allowed, and f
 used to reject registrations. One-person/one-account reconciliation beyond existing ID/email uniqueness,
 a parent portal, student name/DOB correction workflow, login-email replacement, profile avatar upload,
 email-less accounts, and minor face-enrollment policy are not implemented in this phase.
+
+## Post-integration review corrections
+
+V11 has already been applied by the integration owner. It is frozen; these corrections add no
+migration and do not change the schema or the pending-list API contract. The automatic-ID proposal
+is preserved on `codex/student-auto-id-proposal` and is not part of this branch.
+
+The admin queue now loads guardian readiness through the existing admin-only signup-profile API
+with at most four concurrent requests. Loading or failed status reads are excluded from the ready
+count. Rows and the Review dialog show the pending email, signup-permission or relationship step
+before an approval attempt; the dialog disables approval while a required check is incomplete.
+Closing Guardian details refreshes the queue's checks. Refresh queue retries failures. Existing and
+staff-created registrations retain their guardian approval exemptions. Guardianship and biometric
+consent remain independent.
+
+For a pending registration, saving an under-18 DOB is rejected with HTTP 400 while FACE registration
+metadata or legacy face consent remains. Approval repeats the check under the existing student row
+lock, even when every guardian check is complete. The student can use the existing manual-attendance
+switch before saving the DOB. This uses the existing RegistrationFaceService metadata methods;
+no vision files, captures, templates or migration files are changed. An adult DOB remains accepted.
+
+The form opens guardian fields immediately when an editable DOB becomes under 18, preserves entered
+guardian details, and hides the verified-guardian change notice when no guardian exists. Signup Address
+uses the same dark input palette; workspace profile fields retain their current theme. The login
+placeholder now accepts the Student ID or email wording.
+
+Claude should recheck desktop and 390px after integration: loading/error/confirmed guardian queue
+states and counts, the Review dialog, Address focus/hover, minor DOB input, guardian-free approved
+profiles, and DOB rejection followed by manual-attendance recovery. UI checks for this correction
+were not run in the isolated worktree; the main local stack does not yet contain it.

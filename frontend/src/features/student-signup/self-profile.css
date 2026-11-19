@@ -10,3 +10,18 @@
 .self-profile-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
 .self-profile-status { padding: 1rem 0; border-top: 1px solid var(--border, #b8c4ce); }
 @media (max-width: 600px) { .self-profile-grid { grid-template-columns: 1fr; } }
+
+/* Match auth inputs without changing the light workspace profile form. */
+.auth-card .signup-profile-fields .field textarea {
+  min-height: 88px; border-color: rgba(247, 244, 238, .18); border-radius: 8px;
+  background: rgba(13, 15, 15, .78); color: #f7f4ee; caret-color: #b4d8df;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+.auth-card .signup-profile-fields .field textarea:hover {
+  border-color: rgba(247, 244, 238, .3); background: rgba(17, 19, 19, .88);
+}
+.auth-card .signup-profile-fields .field textarea:focus {
+  border-color: rgba(180, 216, 223, .74); background: rgba(17, 19, 19, .94);
+  box-shadow: 0 0 0 3px rgba(156, 199, 208, .13); outline: 0;
+}

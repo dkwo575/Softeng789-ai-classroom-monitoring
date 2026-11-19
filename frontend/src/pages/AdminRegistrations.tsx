@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconUserPlus } from '../components/icons';
 import Modal from '../components/Modal';
-import { GuardianReview } from '../features/student-signup';
+import { GuardianReview, useSignupReviews, registrationReadiness, checkingSignup } from '../features/student-signup';
 import RegistrationReview from '../components/auth/RegistrationReview';
 import Pager from '../components/Pager';
 import PersonAvatar from '../components/PersonAvatar';
@@ -21,13 +21,13 @@ const NEEDS_ATTENTION = 'Needs attention';
 type RegistrationSortKey = 'student' | 'classes' | 'face' | 'consent' | 'submitted';
 type RegistrationAction = 'approve' | 'reject';
 
-function isReadyToApprove(student: PendingStudentApiResponse): boolean {
-  return student.attendanceMode !== 'FACE' || student.faceReviewState === 'PENDING';
-}
-
 export default function AdminRegistrations() {
   const [guardianStudentId, setGuardianStudentId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingStudentApiResponse[]>([]);
+  const [signupRevision, setSignupRevision] = useState(0);
+  const signupStatuses = useSignupReviews(pending.map(student => student.id), signupRevision);
+  const isReadyToApprove = useCallback((student: PendingStudentApiResponse) =>
+    registrationReadiness(student, signupStatuses[student.id]).ready, [signupStatuses]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
   const [busy, setBusy] = useState<{ id: string; action: RegistrationAction } | null>(null);
@@ -45,6 +45,7 @@ export default function AdminRegistrations() {
     try {
       const result = await listPendingStudents();
       setPending(result);
+      setSignupRevision(value => value + 1);
       setListError('');
     } catch (error) {
       setListError(apiMessage(error));
@@ -85,7 +86,7 @@ export default function AdminRegistrations() {
     }
   };
 
-  const readyCount = useMemo(() => pending.filter(isReadyToApprove).length, [pending]);
+  const readyCount = useMemo(() => pending.filter(isReadyToApprove).length, [pending, isReadyToApprove]);
   const attentionCount = pending.length - readyCount;
   const queueLoading = loading && pending.length === 0;
   const filtered = useMemo(() => {
@@ -102,7 +103,7 @@ export default function AdminRegistrations() {
         ...student.requestedClasses
       ].some((value) => value.toLowerCase().includes(normalized));
     });
-  }, [pending, query, reviewState]);
+  }, [pending, query, reviewState, isReadyToApprove]);
 
   const sorted = useMemo(
     () =>
@@ -184,6 +185,7 @@ export default function AdminRegistrations() {
               }}
             />
           </div>
+          <button type="button" className="btn btn--sm" disabled={loading || busy !== null} onClick={() => void refresh()}>Refresh queue</button>
           <div className="registrations-toolbar__result" aria-live="polite">
             {queueLoading ? (
               'Loading requests…'
@@ -228,8 +230,9 @@ export default function AdminRegistrations() {
               />
               <tbody>
                 {paged.rows.map((student, index) => {
-                  const ready = isReadyToApprove(student);
-                  const missingRequirements = 'current registration photos';
+                  const signup = signupStatuses[student.id] ?? checkingSignup;
+                  const readiness = registrationReadiness(student, signup);
+                  const ready = readiness.ready;
                   const classesExpanded = expandedClassIds.has(student.id);
                   const visibleClasses = classesExpanded
                     ? student.requestedClasses
@@ -252,8 +255,9 @@ export default function AdminRegistrations() {
                             <div className="cell-sub">{student.studentNumber} · {student.universityEmail}</div>
                             <span className={ready ? 'registration-readiness registration-readiness--ready' : 'registration-readiness registration-readiness--attention'}>
                               <i aria-hidden="true" />
-                              {ready ? 'Ready for review' : 'Photos expired — manual attendance available'}
+                              {readiness.label}
                             </span>
+                            {signup.label !== readiness.label && <div className="cell-sub">{signup.label}</div>}
                           </div>
                         </div>
                       </td>
@@ -313,7 +317,7 @@ export default function AdminRegistrations() {
                             type="button"
                             className="btn btn--primary btn--sm"
                             aria-label={`Approve ${student.fullName}'s registration`}
-                            title={ready ? 'Approve registration' : `Complete ${missingRequirements} before approval`}
+                            title={readiness.label}
                             disabled={busy !== null}
                             onClick={() => { setActionError(''); setReviewing(student); }}
                           >
@@ -373,7 +377,7 @@ export default function AdminRegistrations() {
         )}
       </section>
 
-      {guardianStudentId && <GuardianReview key={guardianStudentId} studentId={guardianStudentId} onClose={() => setGuardianStudentId(null)} />}
+      {guardianStudentId && <GuardianReview key={guardianStudentId} studentId={guardianStudentId} onClose={() => { setGuardianStudentId(null); setSignupRevision(value => value + 1); }} />}
       {reviewing && <RegistrationReview key={reviewing.id} student={reviewing} busy={busy !== null} error={actionError}
         onClose={() => { setReviewing(null); setActionError(''); }} onApprove={() => void approve(reviewing.id)} />}
       {confirmingStudent && (

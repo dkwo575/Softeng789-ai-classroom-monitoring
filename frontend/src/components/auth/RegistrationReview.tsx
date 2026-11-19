@@ -1,6 +1,7 @@
 import './registrationFace.css';
 import { useEffect, useState } from 'react';
 import Modal from '../Modal';
+import { useSignupReviews, registrationReadiness, checkingSignup } from '../../features/student-signup';
 import { apiMessage, request } from '../../lib/apiClient';
 import type { PendingStudentApiResponse } from '../../lib/studentApi';
 
@@ -11,6 +12,7 @@ export default function RegistrationReview({ student, busy, error, onClose, onAp
   const [review, setReview] = useState<Review | null>(null);
   const [loadError, setLoadError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const signup = useSignupReviews([student.id])[student.id] ?? checkingSignup;
   useEffect(() => {
     let cancelled = false;
     request<Review>(`/api/admin/students/${student.id}/registration-face`)
@@ -18,7 +20,9 @@ export default function RegistrationReview({ student, busy, error, onClose, onAp
       .catch(e => { if (!cancelled) setLoadError(apiMessage(e)); });
     return () => { cancelled = true; };
   }, [student.id]);
-  const ready = review && (review.attendanceMode === 'MANUAL' || review.state === 'PENDING' && review.photos.length === 7);
+  const readiness = registrationReadiness({ attendanceMode: review?.attendanceMode ?? student.attendanceMode,
+    faceReviewState: review?.state ?? student.faceReviewState }, signup);
+  const ready = readiness.ready && review && (review.attendanceMode === 'MANUAL' || review.state === 'PENDING' && review.photos.length === 7);
   return <Modal size="wide" closeDisabled={busy} title={`Review ${student.fullName}`} titleId="registration-review-title" onClose={() => { if (!busy) onClose(); }}
     footer={<>
       <button className="btn" disabled={busy} onClick={onClose}>Cancel</button>
@@ -27,6 +31,8 @@ export default function RegistrationReview({ student, busy, error, onClose, onAp
     <div className="registration-review-body">
     <p>{student.studentNumber} · {student.universityEmail}</p>
     <p>Requested classes: {student.requestedClasses.join(', ')}</p>
+    <p role="status">{signup.label}</p>
+    {!readiness.ready && readiness.label !== signup.label && <p role="status">{readiness.label}</p>}
     {!review && !loadError && <p role="status">Loading registration review…</p>}
     {review?.attendanceMode === 'MANUAL' && <p>Manual attendance selected. No face photos are required.</p>}
     {review?.attendanceMode === 'FACE' && <>

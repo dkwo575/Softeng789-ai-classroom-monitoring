@@ -3,6 +3,7 @@ package io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks;
 import io.github.huijingmen.softeng789.classroommonitoring.dto.*;
 import io.github.huijingmen.softeng789.classroommonitoring.entity.*;
 import io.github.huijingmen.softeng789.classroommonitoring.repository.*;
+import io.github.huijingmen.softeng789.classroommonitoring.vision.RegistrationFaceService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.*;
@@ -18,8 +19,9 @@ public class StudentSignupProfiles {
     private final StudentRepository students;
     private final StudentGuardianRepository guardians;
     private final EntityManager em;
-    public StudentSignupProfiles(StudentRepository students, StudentGuardianRepository guardians, EntityManager em) {
-        this.students=students; this.guardians=guardians; this.em=em;
+    private final RegistrationFaceService registrationFaces;
+    public StudentSignupProfiles(StudentRepository students, StudentGuardianRepository guardians, EntityManager em, RegistrationFaceService registrationFaces) {
+        this.students=students; this.guardians=guardians; this.em=em; this.registrationFaces=registrationFaces;
     }
     public static boolean minor(LocalDate birth) {
         return birth != null && birth.plusYears(18).isAfter(LocalDate.now(ZoneId.of("Pacific/Auckland")));
@@ -49,6 +51,7 @@ public class StudentSignupProfiles {
             throw new ResponseStatusException(CONFLICT, "Your profile changed. Reload it before saving.");
         if (student.getDateOfBirth()!=null && !Objects.equals(student.getDateOfBirth(), request.profile().dateOfBirth()))
             throw new ResponseStatusException(BAD_REQUEST, "Contact an administrator to correct your date of birth.");
+        if ("PENDING".equals(student.getApprovalStatus())) requireAdultFaceRegistration(student, request.profile().dateOfBirth());
         apply(student, request.profile(), false);
         student.touchProfile();
         students.saveAndFlush(student);
@@ -88,7 +91,16 @@ public class StudentSignupProfiles {
                 && current.getEmail().equalsIgnoreCase(clean(incoming.email()))
                 && current.getPhone().equals(clean(incoming.phone()));
     }
+    private void requireAdultFaceRegistration(Student student, LocalDate birth) {
+        // The caller holds the same student row lock as registration-face approval/manual switching.
+        // Inspect metadata only; guardian permission never authorizes the adult-only face pilot.
+        if (minor(birth) && (student.isConsentGiven()
+                || "FACE".equals(registrationFaces.summary(student.getId()).attendanceMode())))
+            throw new ResponseStatusException(BAD_REQUEST,
+                    "Students under 18 cannot use the adult face registration pilot. Switch to manual attendance before saving this date of birth or approving the registration.");
+    }
     public void requireApproval(Student student) {
+        requireAdultFaceRegistration(student, student.getDateOfBirth());
         if (!student.isSignupChecksRequired()) return;
         var guardian=guardians.findById(student.getId()).orElse(null);
         if (guardian==null && !minor(student.getDateOfBirth())) return;
