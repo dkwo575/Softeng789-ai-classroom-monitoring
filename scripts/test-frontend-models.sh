@@ -18,6 +18,7 @@ trap cleanup EXIT INT TERM
     --skipLibCheck true \
     --esModuleInterop true \
     --noEmit false \
+    "$FRONTEND_ROOT/src/features/student-signup/profileFormModel.ts" \
     "$FRONTEND_ROOT/src/features/student-profile/studentProfileModel.ts" \
     "$FRONTEND_ROOT/src/features/report-review/reportModel.ts" \
     "$FRONTEND_ROOT/src/features/report-review/reportApproval.ts" \
@@ -116,6 +117,7 @@ STUDENT_OVERVIEW_MODEL_PATH="$TEST_BUILD_DIR/features/student-overview/studentOv
         "$FRONTEND_ROOT/tests/legacyReportDelivery.test.cjs" \
         "$FRONTEND_ROOT/tests/authSession.test.cjs" \
         "$FRONTEND_ROOT/tests/authContrast.test.cjs" \
+        "$FRONTEND_ROOT/tests/studentSignup.test.cjs" \
         "$FRONTEND_ROOT/tests/accountAccess.test.cjs" \
         "$FRONTEND_ROOT/tests/lessonCreditPanelState.test.cjs" \
         "$FRONTEND_ROOT/tests/paymentReceiptPreview.test.cjs" \

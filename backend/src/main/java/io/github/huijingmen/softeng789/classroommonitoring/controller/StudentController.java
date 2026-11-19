@@ -36,6 +36,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 @RestController
 @RequestMapping("/api/students")
 public class StudentController {
+    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
     private final StudentService studentService;
     private final StudentDirectoryService studentDirectoryService;
     private final FaceEnrollmentService faceEnrollmentService;
@@ -49,14 +50,35 @@ public class StudentController {
             FaceEnrollmentService faceEnrollmentService,
             SessionAuthService sessionAuthService,
             StaffAccessService staffAccessService,
-            ProtectedMediaService protectedMediaService
+            ProtectedMediaService protectedMediaService,
+            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
     ) {
+        this.signupProfiles = signupProfiles;
         this.studentService = studentService;
         this.studentDirectoryService = studentDirectoryService;
         this.faceEnrollmentService = faceEnrollmentService;
         this.sessionAuthService = sessionAuthService;
         this.staffAccessService = staffAccessService;
         this.protectedMediaService = protectedMediaService;
+    }
+
+    public record GuardianReview(@jakarta.validation.constraints.NotNull UUID revision,
+            @jakarta.validation.constraints.NotBlank String method,
+            @jakarta.validation.constraints.AssertTrue boolean relationshipConfirmed) {}
+
+    @GetMapping("/{id}/signup-profile")
+    public io.github.huijingmen.softeng789.classroommonitoring.dto.StudentProfileResponse signupProfile(
+            @PathVariable UUID id, @RequestHeader(value="Authorization",required=false) String header,
+            jakarta.servlet.http.HttpServletResponse response) {
+        sessionAuthService.requireAdmin(header);
+        response.setHeader("Cache-Control","no-store");
+        return signupProfiles.read(id);
+    }
+    @PostMapping("/{id}/guardian-confirmation")
+    public io.github.huijingmen.softeng789.classroommonitoring.dto.StudentProfileResponse confirmGuardian(
+            @PathVariable UUID id, @Valid @RequestBody GuardianReview review,
+            @RequestHeader(value="Authorization",required=false) String header) {
+        return signupProfiles.confirmGuardian(id,sessionAuthService.requireAdmin(header),review.revision(),review.method());
     }
 
     @GetMapping

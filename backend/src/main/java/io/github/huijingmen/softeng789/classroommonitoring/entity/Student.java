@@ -82,6 +82,32 @@ public class Student {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    @Column(nullable=false) private long profileRevision;
+    public void touchProfile() { profileRevision++; }
+    public Long getVersion() { return version; }
+    private java.time.LocalDate dateOfBirth;
+    @Column(length = 160) private String schoolName;
+    @Column(length = 500) private String address;
+    @Column(length = 40) private String phone;
+    @Column(length = 255) private String contactEmail;
+    @Column(nullable = false) private boolean signupChecksRequired;
+    private Instant emailVerifiedAt;
+
+    public java.time.LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(java.time.LocalDate value) { dateOfBirth = value; }
+    public String getSchoolName() { return schoolName; }
+    public void setSchoolName(String value) { schoolName = value; }
+    public String getAddress() { return address; }
+    public void setAddress(String value) { address = value; }
+    public String getPhone() { return phone; }
+    public void setPhone(String value) { phone = value; }
+    public String getContactEmail() { return contactEmail; }
+    public void setContactEmail(String value) { contactEmail = value; }
+    public boolean isSignupChecksRequired() { return signupChecksRequired; }
+    public void setSignupChecksRequired(boolean value) { signupChecksRequired = value; }
+    public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void setEmailVerifiedAt(Instant value) { emailVerifiedAt = value; }
+
     @PrePersist
     void prePersist() {
         Instant now = Instant.now();
@@ -111,6 +137,7 @@ public class Student {
     }
 
     public void setUniversityEmail(String universityEmail) {
+        if (this.universityEmail != null && !this.universityEmail.equalsIgnoreCase(universityEmail)) emailVerifiedAt = null;
         this.universityEmail = universityEmail;
     }
 

@@ -35,6 +35,12 @@ public class AccountLink {
     private String accountRole;
     @Column(name = "password_fingerprint", length = 64)
     private String passwordFingerprint;
+    private UUID subjectId;
+    @Column(length = 64) private String subjectRevision;
+    public void bindSubject(UUID id, String revision) { subjectId = id; subjectRevision = revision; }
+    public UUID getSubjectId() { return subjectId; }
+    public String getSubjectRevision() { return subjectRevision; }
+    @Override public String toString() { return "AccountLink[redacted]"; }
     @Version
     @Column(nullable = false)
     private Long version;

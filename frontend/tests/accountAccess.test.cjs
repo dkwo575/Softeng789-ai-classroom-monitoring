@@ -64,7 +64,7 @@ function formHarness(send, availability = { capabilities: { accountEmail: true, 
   const state = []; let cursor = 0;
   const react = {
     ...require('react'),
-    useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial;
+    useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial;
       return [state[i], value => { state[i] = value; }]; },
     useRef(initial) { const i = cursor++; return state[i] ??= { current: initial }; }
   };
@@ -136,7 +136,7 @@ function capabilityHarness() {
   let cursor = 0;
   const react = {
     useState(initial) {
-      const i = cursor++; if (!(i in state)) state[i] = initial;
+      const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial;
       return [state[i], next => { state[i] = typeof next === 'function' ? next(state[i]) : next; }];
     },
     useEffect(effect, deps) {
@@ -223,19 +223,24 @@ function registrationPage(initialMode = 'register', registrationOptions) {
   const state = []; let cursor = 0; const submitted = [];
   const effects = []; let mounted = false;
   const react = { ...require('react'), useEffect(fn) { if (registrationOptions && !mounted) effects.push(fn); },
-    useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial;
+    useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial;
       return [state[i], next => { state[i] = typeof next === 'function' ? next(state[i]) : next; }]; } };
   const component = load(bundle('../../pages/AuthPage.tsx', [
     'react', 'react/jsx-runtime', '../components/auth/LoginForm', '../components/auth/RegisterForm',
     '../components/auth/StudentFaceRegistrationStep', '../lib/apiClient', '../lib/classAdminApi',
-    '../lib/faceEnrollment', '../features/account-access/AccountLinkRequestForm',
+    '../lib/faceEnrollment', '../features/account-access', '../features/student-signup',
   ]), {
     react, '../components/auth/LoginForm': 'LoginForm', '../components/auth/RegisterForm': 'RegisterForm',
     '../components/auth/StudentFaceRegistrationStep': 'FaceStep',
     '../lib/apiClient': { request: async () => registrationOptions },
     '../lib/classAdminApi': { listPublicClasses: async () => [] },
     '../lib/faceEnrollment': { hasRequiredEnrollmentCaptures: captures => captures.length === 7 },
-    '../features/account-access/AccountLinkRequestForm': 'LinkRequest',
+    '../features/account-access': { AccountLinkRequestForm: 'LinkRequest', StudentSignupForm: 'RegisterForm',
+      ContactVerification: 'ContactVerification', passwordIssue: model.passwordIssue },
+    '../features/student-signup': {
+      emptyProfile: () => ({ dateOfBirth: null, schoolName: '', address: '', phone: '', contactEmail: '', guardian: null }),
+      ...load(bundle('../student-signup/profileFormModel.ts')),
+    },
   }).default;
   const auth = { clearError() {}, error: '', busy: false,
     async registerStudent(payload, captures) { submitted.push({ payload, captures }); return true; } };
@@ -249,6 +254,7 @@ function registrationPage(initialMode = 'register', registrationOptions) {
 function fillFaceRegistration(h) {
   const details = h.render().props;
   details.onFullNameChange('New Student'); details.onStudentNumberChange('NEW-001');
+  details.onProfileChange({ dateOfBirth: '2000-01-01', schoolName: 'School', address: '', phone: '', contactEmail: '', guardian: null });
   details.onEmailChange('new@example.test'); details.onPasswordChange('strong-password');
   details.onConfirmPasswordChange('strong-password'); details.onClassSelectionChange(['class-1']);
   details.onAttendanceModeChange('FACE');
@@ -315,6 +321,7 @@ test('direct manual registration retains details and class choice without requir
   const h = registrationPage();
   const details = h.render().props;
   details.onFullNameChange('New Student'); details.onStudentNumberChange('NEW-001');
+  details.onProfileChange({ dateOfBirth: '2000-01-01', schoolName: 'School', address: '', phone: '', contactEmail: '', guardian: null });
   details.onEmailChange('new@example.test'); details.onPasswordChange('strong-password');
   details.onConfirmPasswordChange('strong-password'); details.onClassSelectionChange(['class-1']);
   await h.render().props.onSubmit({ preventDefault() {} });
@@ -325,4 +332,36 @@ test('direct manual registration retains details and class choice without requir
   assert.equal(h.submitted[0].payload.consentGiven, false);
   assert.equal(h.submitted[0].payload.emailProof, undefined);
   assert.equal(h.submitted[0].captures.length, 0);
+});
+
+test('student signup preserves the supplied ID until automatic issuance is separately enabled', async () => {
+  const h = registrationPage();
+  fillFaceRegistration(h);
+  h.render().props.onAttendanceModeChange('MANUAL');
+  h.render().props.onStudentNumberChange('FORGED-ID');
+  await h.render().props.onSubmit({ preventDefault() {} });
+  assert.equal(h.submitted[0].payload.studentNumber, 'FORGED-ID');
+  assert.equal(h.submitted[0].payload.profile.dateOfBirth, '2000-01-01');
+});
+test('minor signup requires guardian details and cannot enter the adult face pilot', async () => {
+  const h = registrationPage('register', { faceEnabled: true, noticeVersion: 'test-notice' });
+  fillFaceRegistration(h);
+  const base = { dateOfBirth: '2020-01-01', schoolName: '', address: '', phone: '', contactEmail: '' };
+  h.render().props.onProfileChange({ ...base, guardian: null });
+  await h.render().props.onSubmit({ preventDefault() {} });
+  assert.match(h.render().props.errorMessage, /guardian/);
+  h.render().props.onProfileChange({ ...base, guardian: { name: 'Guardian', relationship: 'Parent', email: 'guardian@example.test', phone: '020000000' } });
+  await h.render().props.onSubmit({ preventDefault() {} });
+  assert.match(h.render().props.errorMessage, /adult volunteer pilot/);
+  assert.equal(h.submitted.length, 0);
+});
+test('guardian verification uses an explicit POST with independent signup permission', async () => {
+  const calls = [];
+  const api = load(bundle('api.ts', ['../../lib/apiClient']), { '../../lib/apiClient': {
+    request: async (path, options) => calls.push({ path, options }),
+  } });
+  await api.confirmContact('proof', true, 'guardian-signup-v1');
+  assert.equal(calls[0].path, '/api/auth/account-links/confirm-contact');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { token: 'proof', signupPermission: true, noticeVersion: 'guardian-signup-v1' });
 });

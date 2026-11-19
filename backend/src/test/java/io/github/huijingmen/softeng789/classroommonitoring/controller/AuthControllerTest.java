@@ -37,6 +37,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         authService = mock(AuthService.class);
+        when(authService.loginBudgetIdentity(any())).thenAnswer(call -> call.getArgument(0));
         loginAttemptService = mock(LoginAttemptService.class);
         authController = new AuthController(
                 authService,

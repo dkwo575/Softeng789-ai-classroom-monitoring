@@ -52,6 +52,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final SessionAuthService sessionAuthService;
     private final AccountLinkProofs accountLinks;
+    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
 
     public AuthService(
             StudentRepository studentRepository,
@@ -64,7 +65,8 @@ public class AuthService {
             SessionAuthService sessionAuthService,
             PasswordEncoder passwordEncoder,
             RegistrationFaceService registrationFaces,
-            AccountLinkProofs accountLinks
+            AccountLinkProofs accountLinks,
+            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
     ) {
         this.registrationFaces = registrationFaces;
         this.studentRepository = studentRepository;
@@ -77,6 +79,7 @@ public class AuthService {
         this.sessionAuthService = sessionAuthService;
         this.passwordEncoder = passwordEncoder;
         this.accountLinks = accountLinks;
+        this.signupProfiles = signupProfiles;
     }
 
     @Transactional
@@ -87,7 +90,8 @@ public class AuthService {
     ) {
         AccountPasswordPolicy.require(request.password());
         String studentNumber = request.studentNumber().trim();
-        String email = request.universityEmail().trim();
+        signupProfiles.validateRegistration(request.profile(), request.attendanceMode(), request.consentGiven());
+        String email = request.universityEmail().trim().toLowerCase(java.util.Locale.ROOT);
         // New students no longer need mailbox proof. Keep cross-role identity conflicts explicit
         // instead of relying on the email-link target resolver to reject them before registration.
         if (teacherRepository.findByEmailIgnoreCase(email).isPresent()) {
@@ -101,6 +105,7 @@ public class AuthService {
         Optional<Student> existingByNumber = studentRepository.findByStudentNumberIgnoreCase(studentNumber);
         if (existingByNumber.isPresent()) {
             Student existing = existingByNumber.get();
+            studentNumber = existing.getStudentNumber();
             if (existing.getPasswordHash() != null) {
                 throw new ResponseStatusException(CONFLICT, "That student ID is already registered.");
             }
@@ -143,7 +148,9 @@ public class AuthService {
             // silently overwriting the other's password.
             // Flush before the enrollment consent path locks/refreshes the student row.
             Student saved = studentRepository.saveAndFlush(existing);
+            signupProfiles.register(saved, request.profile(), true, false);
             enrolInSelectedClasses(saved, selectedClasses);
+            studentRepository.flush();
             if (verifiedCaptures != null) faceEnrollmentService.persistVerifiedCaptures(saved.getId(), verifiedCaptures);
             if (prepared != null) registrationFaces.save(saved.getId(), prepared);
             return sessionAuthService.issueToken(SessionAuthService.ROLE_STUDENT, saved.getId(), saved.getFullName(),
@@ -154,6 +161,9 @@ public class AuthService {
             throw new ResponseStatusException(CONFLICT, "That university email is already registered.");
         }
 
+        if (request.emailProof() != null && !request.emailProof().isBlank())
+            accountLinks.consumeRegistration(request.emailProof(), AccountLinkPurpose.STUDENT_REGISTRATION,
+                    email, null, SessionAuthService.ROLE_STUDENT);
         FaceRegistrationVerifier.VerifiedCaptureSet verifiedCaptures =
                 request.attendanceMode() == null && request.consentGiven() ? faceRegistrationVerifier.verify(studentNumber, captureMetadata, captureImages) : null;
 
@@ -175,8 +185,10 @@ public class AuthService {
         // New registrations, including explicit-mode claims above, require Admin review.
         student.setApprovalStatus("PENDING");
         student = studentRepository.saveAndFlush(student);
+        signupProfiles.register(student, request.profile(), request.emailProof() != null && !request.emailProof().isBlank(), true);
         enrolInSelectedClasses(student, selectedClasses);
 
+        studentRepository.flush();
         // Enrollment material joins the account/class transaction. Pending CV material remains
         // separate from active profiles until Admin approval; any storage failure rolls back all.
         if (verifiedCaptures != null) faceEnrollmentService.persistVerifiedCaptures(student.getId(), verifiedCaptures);
@@ -264,11 +276,20 @@ public class AuthService {
                 "An administrator must add your staff account before you can register.");
     }
 
+    @Transactional(readOnly = true)
+    public String loginBudgetIdentity(String identity) {
+        String value = identity.trim();
+        return value.contains("@") ? value : studentRepository.findByStudentNumberIgnoreCase(value)
+                .map(Student::getUniversityEmail).orElse(value);
+    }
+
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.email().trim();
 
-        Optional<Student> student = studentRepository.findByUniversityEmailIgnoreCase(email);
+        Optional<Student> student = email.contains("@")
+                ? studentRepository.findByUniversityEmailIgnoreCase(email)
+                : studentRepository.findByStudentNumberIgnoreCase(email);
         if (student.isPresent() && matches(request.password(), student.get().getPasswordHash())) {
             Student found = student.get();
             if (STATUS_WITHDRAWN.equals(found.getStatus())) {

@@ -10,9 +10,8 @@ import { listPublicClasses, type PublicClassSummaryApiResponse } from '../lib/cl
 import { isEmailAddress } from '../lib/emailAddress';
 import type { Auth } from '../hooks/useAuth';
 import type { StudentLevel, UserRole } from '../types';
-import AccountLinkRequestForm from '../features/account-access/AccountLinkRequestForm';
-import type { AccountLinkDetails } from '../features/account-access/api';
-import { passwordIssue } from '../features/account-access/accountLinkModel';
+import { AccountLinkRequestForm, StudentSignupForm, ContactVerification, passwordIssue, type AccountLinkDetails } from '../features/account-access';
+import { emptyProfile, profileIssue, isMinor, type ProfileInput } from '../features/student-signup';
 
 type Mode = 'login' | 'register' | 'recover';
 
@@ -46,6 +45,7 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [studentNumber, setStudentNumber] = useState('');
+  const [signupProfile, setSignupProfile] = useState<ProfileInput>(emptyProfile);
   const [fullName, setFullName] = useState('');
   const [level, setLevel] = useState<StudentLevel>('LEVEL_1');
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
@@ -103,7 +103,7 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
     event.preventDefault();
     setLocalError('');
     if (!email.trim() || !password) {
-      setLocalError('Enter your email and password.');
+      setLocalError('Enter your Student ID or email and password.');
       return;
     }
     await auth.login({ email: email.trim(), password });
@@ -127,12 +127,19 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
   };
 
   const submitStudentRegistration = async () => {
+    const issue = profileIssue(signupProfile, true, email);
+    if (issue) { setLocalError(issue); return; }
+    if (isMinor(signupProfile.dateOfBirth) && attendanceMode === 'FACE') {
+      setLocalError('Face attendance remains an adult volunteer pilot. Choose manual attendance.'); return;
+    }
     if (!prepareFaceRegistration()) return;
     const courseLabel = classes.filter((klass) => selectedClassIds.includes(klass.id)).map((klass) => klass.courseCode).join(', ');
-    const registered = await auth.registerStudent({ studentNumber: studentNumber.trim(), universityEmail: email.trim(),
+    const payload = { studentNumber: studentNumber.trim(), universityEmail: email.trim(),
       fullName: fullName.trim(), course: courseLabel, classOfferingIds: selectedClassIds,
       password, consentGiven: attendanceMode === 'FACE' && consent, level, attendanceMode,
-      adultConfirmed: attendanceMode === 'FACE' && consent, noticeVersion: options.noticeVersion, emailProof: verification?.token }, attendanceMode === 'FACE' ? captures : []);
+      adultConfirmed: attendanceMode === 'FACE' && consent, noticeVersion: options.noticeVersion,
+      emailProof: verification?.token, profile: signupProfile };
+    const registered = await auth.registerStudent(payload, attendanceMode === 'FACE' ? captures : []);
     if (registered) onRegistered?.();
   };
 
@@ -149,7 +156,7 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
         return;
       }
       if (!isEmailAddress(email.trim())) {
-        setLocalError('Enter a valid university email address.');
+        setLocalError('Enter a valid login email address.');
         return;
       }
       if (selectedClassIds.length === 0) {
@@ -174,6 +181,9 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
     if (registered) onRegistered?.();
   };
 
+  if (verification && (verification.purpose === 'STUDENT_EMAIL' || verification.purpose === 'GUARDIAN_VERIFICATION')) {
+    return <ContactVerification token={verification.token} details={verification} />;
+  }
   if (mode === 'login') {
     return <LoginForm
       email={email}
@@ -209,8 +219,10 @@ export default function AuthPage({ auth, initialMode = 'login', onBack, verifica
     onSubmit={submitRegister} onBackToDetails={() => { setFaceStep(false); setCaptures([]); setConsent(false); setLocalError(''); auth.clearError(); }}
   />;
 
+  const DetailsForm = role === 'student' ? StudentSignupForm : RegisterForm;
   return (
-    <RegisterForm
+    <DetailsForm
+      profile={signupProfile} onProfileChange={setSignupProfile}
       attendanceMode={attendanceMode} onAttendanceModeChange={setAttendanceMode} faceEnabled={options.faceEnabled}
       verifiedEmail={!!verification}
       role={role}

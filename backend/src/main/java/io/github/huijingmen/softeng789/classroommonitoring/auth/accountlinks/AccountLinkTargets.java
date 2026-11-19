@@ -13,7 +13,11 @@ import org.springframework.stereotype.Component;
 public class AccountLinkTargets {
     private final StudentRepository students;
     private final TeacherRepository staff;
-    public AccountLinkTargets(StudentRepository students, TeacherRepository staff) { this.students = students; this.staff = staff; }
+    private final io.github.huijingmen.softeng789.classroommonitoring.repository.StudentGuardianRepository guardians;
+    public AccountLinkTargets(StudentRepository students, TeacherRepository staff,
+            io.github.huijingmen.softeng789.classroommonitoring.repository.StudentGuardianRepository guardians) {
+        this.students=students; this.staff=staff; this.guardians=guardians;
+    }
     record Target(UUID id, String role, String passwordHash) {
         @Override public String toString() { return "AccountLinkTarget[redacted]"; }
     }
@@ -24,6 +28,7 @@ public class AccountLinkTargets {
         // Cross-role email collisions must be corrected by staff, never arbitrarily selected.
         if (student.isPresent() && teacher.isPresent()) return null;
         return switch (purpose) {
+            case STUDENT_EMAIL, GUARDIAN_VERIFICATION -> null;
             case STUDENT_REGISTRATION -> teacher.isPresent() ? null : studentRegistration(student.orElse(null));
             case STAFF_ACTIVATION -> staffTarget(teacher.orElse(null), true);
             case PASSWORD_RESET -> teacher.isPresent() ? staffTarget(teacher.get(), false)
@@ -50,8 +55,31 @@ public class AccountLinkTargets {
                 ? new Target(student.getId(), "STUDENT", student.getPasswordHash()) : null;
     }
 
+    Target resolve(AccountLink row) {
+        if (row.getPurpose()!=AccountLinkPurpose.STUDENT_EMAIL && row.getPurpose()!=AccountLinkPurpose.GUARDIAN_VERIFICATION)
+            return resolve(row.getEmail(),row.getPurpose());
+        if (row.getSubjectId()==null) return null;
+        var student=students.findById(row.getSubjectId()).orElse(null);
+        if (student==null || !"ACTIVE".equals(student.getStatus()) || "REJECTED".equals(student.getApprovalStatus())) return null;
+        if (row.getPurpose()==AccountLinkPurpose.STUDENT_EMAIL) {
+            if (!student.getUniversityEmail().equalsIgnoreCase(row.getEmail())
+                    || !AccountLinkSecrets.digest(student.getUniversityEmail().toLowerCase(java.util.Locale.ROOT)).equals(row.getSubjectRevision())
+                    || student.getEmailVerifiedAt()!=null) return null;
+        } else {
+            var guardian=guardians.findById(student.getId()).orElse(null);
+            if (guardian==null || guardian.getEmail().equalsIgnoreCase(student.getUniversityEmail())
+                    || !guardian.getEmail().equalsIgnoreCase(row.getEmail())
+                    || !guardian.getRevision().toString().equals(row.getSubjectRevision())
+                    || guardian.getEmailVerifiedAt()!=null) return null;
+        }
+        return new Target(student.getId(),"STUDENT",student.getPasswordHash());
+    }
+    String subjectName(AccountLink row) {
+        return row.getPurpose()==AccountLinkPurpose.GUARDIAN_VERIFICATION && row.getSubjectId()!=null
+                ? students.findById(row.getSubjectId()).map(Student::getFullName).orElse(null) : null;
+    }
     boolean matches(AccountLink row) {
-        var current = resolve(row.getEmail(), row.getPurpose());
+        var current = resolve(row);
         return current != null && java.util.Objects.equals(current.id(), row.getAccountId())
                 && current.role().equals(row.getAccountRole())
                 && AccountLinkSecrets.fingerprint(current.passwordHash()).equals(row.getPasswordFingerprint());

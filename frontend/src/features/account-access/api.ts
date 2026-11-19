@@ -1,8 +1,9 @@
 import { request } from '../../lib/apiClient';
 
-export type AccountLinkPurpose = 'STUDENT_REGISTRATION' | 'STAFF_ACTIVATION' | 'PASSWORD_RESET';
+export type AccountLinkPurpose = 'STUDENT_REGISTRATION' | 'STAFF_ACTIVATION' | 'PASSWORD_RESET' | 'STUDENT_EMAIL' | 'GUARDIAN_VERIFICATION';
 export interface AccountLinkDetails {
-  email: string;
+  studentName?: string | null;
+  email: string | null;
   purpose: AccountLinkPurpose;
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
 }
@@ -33,4 +34,8 @@ export function createAssistedActivation(kind: 'STUDENT' | 'STAFF', accountId: s
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind, accountId, identityConfirmed: true }),
   });
+}
+
+export function confirmContact(token: string, signupPermission: boolean, noticeVersion: string | null) {
+  return post<void>('/confirm-contact', { token, signupPermission, noticeVersion });
 }

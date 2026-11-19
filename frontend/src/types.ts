@@ -48,6 +48,10 @@ export interface LoginPayload {
 }
 
 export interface RegisterStudentPayload {
+  profile?: {
+    dateOfBirth: string | null; schoolName: string; address: string; phone: string; contactEmail: string;
+    guardian: { name: string; relationship: string; email: string; phone: string } | null;
+  };
   attendanceMode?: "MANUAL" | "FACE";
   adultConfirmed?: boolean;
   noticeVersion?: string;

@@ -149,6 +149,23 @@ as low attendance. Regression coverage: `attendanceRateConsistency.test.cjs`, `a
   `paymentModels.test.cjs`. Test discounts, penny splits, negative refund periods, old invoices paid now,
   new invoices paid outside the period, future transactions, unlinked fees and zero-net drafts.
 
+## Student signup and self-service profile
+
+- [Phase 4B](phase4b-student-signup.md) adds DOB/contact fields, a per-student guardian relationship,
+  separate mailbox/signup permission and independent admin relationship confirmation. Only new
+  self-signups requiring guardian confirmation are blocked; legacy, staff-provisioned and no-guardian
+  approvals keep their contract. Guardian confirmation never grants any biometric/camera consent.
+- `auth/accountlinks/StudentSignupProfiles` owns profile validation, optimistic writes and the approval
+  condition; `StudentContactVerification` reuses digest-only account links with student/revision binding.
+  The exact public confirm-contact POST preserves CSRF. Guardian inspection exposes only the student's
+  display name, purpose and role, never contact data. Student/guardian contact data must not be logged.
+- `features/student-signup/` owns the student profile form and Admin guardian review behind `index.ts`.
+  The staff `features/student-profile/` stays separate. PendingApproval and StudentProfileSettings only
+  connect the feature; ConsentPanel stays intact. Editing contact email does not replace login identity.
+- Students can log in with their Student ID or existing email; both aliases share the login rate budget.
+  V11 is additive and preserves old account-link purposes and KIOSK roles. UI and real SMTP checks belong
+  to the integration owner; unit/H2 tests do not validate actual PostgreSQL upgrades.
+
 ## Backend layering
 
 - `auth/` owns durable session entities/repository, cookie policy, Spring Security configuration,

@@ -1,3 +1,4 @@
+import { SelfProfileEditor } from '../features/student-signup';
 import PendingRegistrationAttendance from '../components/auth/PendingRegistrationAttendance';
 import { useTheme } from '../hooks/useTheme';
 import ThemeToggleButton from '../components/ThemeToggleButton';
@@ -71,7 +72,7 @@ export default function PendingApproval({ user, status, onLogout }: Props) {
                 </p>
               </>
             )}
-            {!rejected && <PendingRegistrationAttendance studentId={user.id} />}
+            {!rejected && <><SelfProfileEditor pending /><PendingRegistrationAttendance studentId={user.id} /></>}
           </section>
         </div>
       </div>

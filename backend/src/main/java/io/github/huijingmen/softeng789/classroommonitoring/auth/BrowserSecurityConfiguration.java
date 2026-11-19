@@ -50,7 +50,7 @@ public class BrowserSecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout", "/api/auth/register/student",
                                 "/api/auth/registration-capture-check",
                                 "/api/auth/register/teacher", "/api/auth/account-links", "/api/auth/account-links/inspect",
-                                "/api/auth/account-links/reset-password").permitAll()
+                                "/api/auth/account-links/reset-password", "/api/auth/account-links/confirm-contact").permitAll()
                         // Existing machine-key interceptor remains mandatory for all these routes.
                         .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")

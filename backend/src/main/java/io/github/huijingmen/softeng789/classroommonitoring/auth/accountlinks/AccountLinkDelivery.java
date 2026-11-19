@@ -38,7 +38,7 @@ public class AccountLinkDelivery {
         var pending = links.nextRequests(PageRequest.of(0, 1));
         if (pending.isEmpty()) return null;
         var row = pending.getFirst();
-        var target = targets.resolve(row.getEmail(), row.getPurpose());
+        var target = targets.resolve(row);
         if (!Instant.now().isBefore(row.getExpiresAt()) || target == null) { row.discard(); return null; }
         String token = AccountLinkSecrets.generate();
         row.dispatch(AccountLinkSecrets.digest(token), target.id(), target.role(),

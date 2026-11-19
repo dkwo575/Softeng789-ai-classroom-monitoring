@@ -28,7 +28,7 @@ export default function AccountLinkRequestForm({ purpose, onPurposeChange, onBac
     } else {
       subtitle = reset
         ? 'Password recovery by email is not available in this environment. Your password has not been changed.'
-        : 'Ask an administrator to help activate your account. New students can register without email verification.';
+        : 'Ask an administrator to help activate your account. New students can submit an application; guardian confirmation may still be required before approval.';
     }
   }
   const submit = async (event: FormEvent) => {

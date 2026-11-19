@@ -1,0 +1,12 @@
+.signup-profile-fields { border: 0; padding: 0; margin: 1.25rem 0; min-width: 0; }
+.signup-profile-fields > legend { font-weight: 650; margin-bottom: .8rem; }
+.signup-profile-fields fieldset { border: 1px solid var(--border, #b8c4ce); padding: 1rem; border-radius: 12px; min-width: 0; margin-top: 1rem; }
+.self-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.self-profile-grid input, .self-profile-grid textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.self-profile-check { display: flex; align-items: flex-start; gap: .6rem; margin: 1rem 0; }
+.self-profile-check input { width: auto; flex: 0 0 auto; }
+.self-profile-editor { max-width: 800px; padding: 1rem; }
+.self-profile-editor p { overflow-wrap: anywhere; }
+.self-profile-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
+.self-profile-status { padding: 1rem 0; border-top: 1px solid var(--border, #b8c4ce); }
+@media (max-width: 600px) { .self-profile-grid { grid-template-columns: 1fr; } }

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record RegisterStudentRequest(
-        @NotBlank String studentNumber,
+        @NotBlank @Size(max = 80) String studentNumber,
         @NotBlank @Email String universityEmail,
         @NotBlank String fullName,
         @NotBlank String course,
@@ -22,7 +22,8 @@ public record RegisterStudentRequest(
         String attendanceMode,
         Boolean adultConfirmed,
         String noticeVersion,
-        @Pattern(regexp = "[A-Za-z0-9_-]{43}") String emailProof
+        @Pattern(regexp = "[A-Za-z0-9_-]{43}") String emailProof,
+        @jakarta.validation.Valid StudentProfileInput profile
 ) {
     public RegisterStudentRequest(String studentNumber, String universityEmail, String fullName, String course,
             List<UUID> classOfferingIds, String password, boolean consentGiven, StudentLevel level) {
@@ -36,6 +37,12 @@ public record RegisterStudentRequest(
             List<UUID> classOfferingIds, String password, boolean consentGiven, StudentLevel level,
             String attendanceMode, boolean adultConfirmed, String noticeVersion) {
         this(studentNumber, universityEmail, fullName, course, classOfferingIds, password, consentGiven, level, attendanceMode, adultConfirmed, noticeVersion, null);
+    }
+    public RegisterStudentRequest(String studentNumber, String universityEmail, String fullName, String course,
+            List<UUID> classOfferingIds, String password, boolean consentGiven, StudentLevel level,
+            String attendanceMode, Boolean adultConfirmed, String noticeVersion, String emailProof) {
+        this(studentNumber, universityEmail, fullName, course, classOfferingIds, password, consentGiven,
+                level, attendanceMode, adultConfirmed, noticeVersion, emailProof, null);
     }
     @Override public String toString() { return "RegisterStudentRequest[redacted]"; }
 }

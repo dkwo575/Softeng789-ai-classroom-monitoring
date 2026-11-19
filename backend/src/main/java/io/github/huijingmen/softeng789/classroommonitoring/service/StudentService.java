@@ -46,6 +46,7 @@ public class StudentService {
     private final SessionAuthService sessionAuthService;
     private final TeacherScopeSupport teacherScopeSupport;
     private final RegistrationFaceService registrationFaces;
+    private final io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles;
 
     public StudentService(
             StudentRepository studentRepository,
@@ -55,9 +56,11 @@ public class StudentService {
             FaceEnrollmentStorageService faceEnrollmentStorageService,
             SessionAuthService sessionAuthService,
             TeacherScopeSupport teacherScopeSupport,
-            RegistrationFaceService registrationFaces
+            RegistrationFaceService registrationFaces,
+            io.github.huijingmen.softeng789.classroommonitoring.auth.accountlinks.StudentSignupProfiles signupProfiles
     ) {
         this.registrationFaces = registrationFaces;
+        this.signupProfiles = signupProfiles;
         this.studentRepository = studentRepository;
         this.faceEnrollmentRepository = faceEnrollmentRepository;
         this.courseLookupService = courseLookupService;
@@ -125,6 +128,7 @@ public class StudentService {
         if (!"PENDING".equals(student.getApprovalStatus())) {
             throw new ResponseStatusException(BAD_REQUEST, "Student is not pending approval.");
         }
+        signupProfiles.requireApproval(student);
         registrationFaces.approve(id, admin, identityConfirmed);
         student.setApprovalStatus("APPROVED");
         student = studentRepository.save(student);

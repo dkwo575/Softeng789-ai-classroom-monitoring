@@ -14,12 +14,15 @@ public class AccountLinkProofs {
     private final AccountLinkRepository links;
     private final AccountLinkTargets targets;
     public AccountLinkProofs(AccountLinkRepository links, AccountLinkTargets targets) { this.links = links; this.targets = targets; }
-    public record Details(String email, AccountLinkPurpose purpose, String role) { }
+    public record Details(String email, AccountLinkPurpose purpose, String role, String studentName) {
+        @Override public String toString() { return "AccountLinkDetails[redacted]"; }
+    }
 
     @Transactional(readOnly = true)
     public Details inspect(String token) {
         var row = validate(lookup(token, false));
-        return new Details(row.getEmail(), row.getPurpose(), row.getAccountRole());
+        return new Details(row.getPurpose()==AccountLinkPurpose.GUARDIAN_VERIFICATION ? null : row.getEmail(),
+                row.getPurpose(), row.getAccountRole(), targets.subjectName(row));
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +45,21 @@ public class AccountLinkProofs {
         return row;
     }
 
+    @Transactional(readOnly=true)
+    public UUID contactSubject(String token) {
+        var row=validate(lookup(token,false));
+        requireContact(row);
+        return row.getSubjectId();
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public AccountLink consumeContact(String token) {
+        var row=validate(lookup(token,true));
+        requireContact(row); row.consume(); return row;
+    }
+    private void requireContact(AccountLink row) {
+        if (row.getSubjectId()==null || (row.getPurpose()!=AccountLinkPurpose.STUDENT_EMAIL
+                && row.getPurpose()!=AccountLinkPurpose.GUARDIAN_VERIFICATION)) throw invalid();
+    }
     private AccountLink lookup(String token, boolean lock) {
         if (!AccountLinkSecrets.valid(token)) throw invalid();
         String digest = AccountLinkSecrets.digest(token);

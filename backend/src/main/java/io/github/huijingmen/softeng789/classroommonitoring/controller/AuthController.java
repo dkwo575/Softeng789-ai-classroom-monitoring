@@ -84,7 +84,7 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request,
             HttpServletRequest servletRequest, HttpServletResponse servletResponse) {
-        var reservation = loginAttemptService.beginAttempt(request.email());
+        var reservation = loginAttemptService.beginAttempt(authService.loginBudgetIdentity(request.email()));
         AuthResponse response = authService.login(request);
         var current = sessionAuthService.resolve(cookies.read(servletRequest));
         if (current != null && "KIOSK".equals(current.role())

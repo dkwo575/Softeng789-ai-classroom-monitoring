@@ -18,6 +18,17 @@ public class AccountLinkRequests {
     }
 
     public void request(String email, AccountLinkPurpose purpose) {
+        if (purpose==AccountLinkPurpose.STUDENT_EMAIL || purpose==AccountLinkPurpose.GUARDIAN_VERIFICATION)
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Request verification from your signed-in profile.");
+        enqueue(email,purpose,null,null);
+    }
+    public void requestSubject(String email, AccountLinkPurpose purpose, java.util.UUID id, String revision) {
+        if (purpose!=AccountLinkPurpose.STUDENT_EMAIL && purpose!=AccountLinkPurpose.GUARDIAN_VERIFICATION)
+            throw new IllegalArgumentException("Unsupported contact purpose");
+        enqueue(email,purpose,id,revision);
+    }
+    private void enqueue(String email, AccountLinkPurpose purpose, java.util.UUID id, String revision) {
         if (!mail.available()) throw new ResponseStatusException(SERVICE_UNAVAILABLE,
                 "Account email is not configured yet. Contact an administrator; no email was sent.");
         String normalized = email.trim().toLowerCase(Locale.ROOT);
@@ -27,6 +38,8 @@ public class AccountLinkRequests {
         // Account lookup/delivery occur later: existence and SMTP timing cannot leak here.
         // Repository save commits independently, after admission; no outer transaction holds a
         // pool connection while REQUIRES_NEW waits for a second one under concurrent requests.
-        links.save(new AccountLink(normalized, purpose, Instant.now()));
+        var row=new AccountLink(normalized,purpose,Instant.now());
+        row.bindSubject(id,revision);
+        links.save(row);
     }
 }

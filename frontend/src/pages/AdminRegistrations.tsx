@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconUserPlus } from '../components/icons';
 import Modal from '../components/Modal';
+import { GuardianReview } from '../features/student-signup';
 import RegistrationReview from '../components/auth/RegistrationReview';
 import Pager from '../components/Pager';
 import PersonAvatar from '../components/PersonAvatar';
@@ -25,6 +26,7 @@ function isReadyToApprove(student: PendingStudentApiResponse): boolean {
 }
 
 export default function AdminRegistrations() {
+  const [guardianStudentId, setGuardianStudentId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingStudentApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -296,6 +298,8 @@ export default function AdminRegistrations() {
                       </td>
                       <td className="table__action-cell" data-label="">
                         <span className="table__action-group registration-actions">
+                          <button type="button" className="btn btn--quiet btn--sm" disabled={busy !== null}
+                            onClick={() => setGuardianStudentId(student.id)}>Guardian details</button>
                           <button
                             type="button"
                             className="btn btn--quiet btn--sm"
@@ -369,6 +373,7 @@ export default function AdminRegistrations() {
         )}
       </section>
 
+      {guardianStudentId && <GuardianReview key={guardianStudentId} studentId={guardianStudentId} onClose={() => setGuardianStudentId(null)} />}
       {reviewing && <RegistrationReview key={reviewing.id} student={reviewing} busy={busy !== null} error={actionError}
         onClose={() => { setReviewing(null); setActionError(''); }} onApprove={() => void approve(reviewing.id)} />}
       {confirmingStudent && (

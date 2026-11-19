@@ -20,7 +20,9 @@ public class SmtpAccountLinkMailGateway implements AccountLinkMailGateway {
         message.setFrom(from); message.setTo(email);
         message.setSubject(purpose == AccountLinkPurpose.PASSWORD_RESET ? "ClassLens — reset your password"
                 : "ClassLens — verify your email");
-        message.setText("Use this single-use link within 30 minutes:\n\n" + link
+        message.setText((purpose == AccountLinkPurpose.GUARDIAN_VERIFICATION
+                ? "A student has named you as their parent or guardian. Open this link to review the signup request. This is not permission for face recognition.\n\n"
+                : "") + "Use this single-use link within 30 minutes:\n\n" + link
                 + "\n\nIf you did not request it, ignore this message. Your account has not been changed."
                 + "\nNever forward this link or share it with anyone.");
         sender.send(message);

@@ -38,14 +38,14 @@ export default function LoginForm({
         </button>
       )}
       <h2 className="auth-card__title">Sign in</h2>
-      <p className="auth-card__sub">Use the email and password from your student or teacher account.</p>
+      <p className="auth-card__sub">Students can use their Student ID or login email. Staff use their email.</p>
 
       <div className="auth-form">
         <label className="field">
-          <span>Email</span>
+          <span>Student ID or email</span>
           <input
-            type="email"
-            autoComplete="email"
+            type="text"
+            autoComplete="username"
             value={email}
             onChange={(event) => onEmailChange(event.target.value)}
             placeholder="you@auckland.ac.nz"
