@@ -255,9 +255,9 @@ export default function AdminRegistrations() {
                             <div className="cell-sub">{student.studentNumber} · {student.universityEmail}</div>
                             <span className={ready ? 'registration-readiness registration-readiness--ready' : 'registration-readiness registration-readiness--attention'}>
                               <i aria-hidden="true" />
-                              {readiness.label}
+                              <span className="registration-readiness__text">{readiness.label}</span>
                             </span>
-                            {signup.label !== readiness.label && <div className="cell-sub">{signup.label}</div>}
+                            {signup.label !== readiness.label && <div className="cell-sub registration-guardian-status">{signup.label}</div>}
                           </div>
                         </div>
                       </td>

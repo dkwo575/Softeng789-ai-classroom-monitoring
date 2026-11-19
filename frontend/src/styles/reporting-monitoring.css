@@ -1751,7 +1751,15 @@ button.kv--history:focus-visible {
   background: color-mix(in srgb, var(--ok-bg) 34%, var(--row-hover));
 }
 
+/* Let the mobile grid cell and its flex children shrink below their content width. */
+.registrations-table .person {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .registration-student {
+  flex: 1;
   min-width: 0;
 }
 
@@ -1763,10 +1771,10 @@ button.kv--history:focus-visible {
 }
 
 .registration-readiness {
-  width: max-content;
+  min-width: 0;
   max-width: 100%;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   margin-top: 7px;
   color: var(--muted);
@@ -1774,6 +1782,18 @@ button.kv--history:focus-visible {
   font-weight: 650;
   line-height: 1.25;
   white-space: normal;
+}
+
+.registration-readiness__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.registration-student .registration-guardian-status {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .registration-readiness--ready {
