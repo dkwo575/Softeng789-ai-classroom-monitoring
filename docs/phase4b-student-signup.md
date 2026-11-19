@@ -122,6 +122,24 @@ After integration, Claude checks desktop and 390px: registration with/without a 
 mail delivery and guardian link, independent admin relationship confirmation, pending restrictions,
 profile save/conflict, and unchanged ConsentPanel. Real mail delivery and UI are not claimed by unit tests.
 
+## Known limit: duplicate accounts for one person
+
+This phase does not fully prevent one person from holding more than one student account.
+The server only refuses a Student ID or login email that is already registered (case-insensitive).
+
+- The Student ID is typed by the student and is not checked against any school record.
+  Entering an unused ID with a different email creates a new pending account.
+- A staff-created record is claimed only when the student enters its exact Student ID and proves
+  the mailbox. A different ID and email create a second account.
+- Matching names, dates of birth or guardian details do not block a signup, and face similarity is
+  not used to reject one.
+
+Until reconciliation exists, administrators should compare each pending signup with existing
+students (name, date of birth, guardian details) before approving it, and reject duplicates.
+Automatic Student ID issuance is deferred for the same reason. The proposal is kept as commit
+`a6f7f45`. It will return in its own later migration after existing-record linkage, duplicate
+handling and the ID format are decided.
+
 ## Remaining product work
 
 A verified mailbox is not verified guardianship. Admins must use independent evidence; a call only
