@@ -177,3 +177,54 @@ Claude should recheck desktop and 390px after integration: loading/error/confirm
 states and counts, the Review dialog, Address focus/hover, minor DOB input, guardian-free approved
 profiles, and DOB rejection followed by manual-attendance recovery. UI checks for this correction
 were not run in the isolated worktree; the main local stack does not yet contain it.
+
+## Integration check
+
+Claude integrated the branch through `d83a56c` into the main checkout, applied V11 to the local
+database and checked desktop (1024, 1280 and 1440px) and 390px.
+
+- Passed: guardian readiness labels and the ready count, Review gating, signup Address styling,
+  guardian fields opening for an under-18 DOB, the guardian notice hidden for an approved student
+  without a guardian, long status labels wrapping in 390px cards, and the sticky desktop Actions
+  column. Guardian details, Reject and Review are visible and clickable at 1024, 1280 and 1440px,
+  and keyboard focus moves through them in order with a visible focus ring.
+- Not run in the UI: completing guardian email, permission and relationship confirmation, because
+  the local stack has account mail disabled. Rejecting an under-18 DOB for a face registration and
+  recovering through manual attendance were not run either, because no face-pending test account
+  exists. Backend tests cover both.
+- Minor items left as they are: at 1024 to 1280px the sticky Actions column covers part of the
+  Submitted column, which scrolls into view, and a focused Submitted sort button is partly covered.
+  Clicking an action button can scroll the table sideways. The Review button's accessible name says
+  "Approve", which was already the case on main.
+
+## Agreed follow-up (not part of Phase 4B)
+
+The project owner agreed the following as later work. None of it is implemented in this phase.
+
+1. Every student self-signup requires guardian details.
+2. Face attendance becomes the default path for all students, including students under 18, with a
+   separate guardian consent for processing the student's face data.
+3. Manual attendance stays available as an alternative that the student or guardian can choose or
+   request.
+4. The server issues Student IDs automatically, and the signup form no longer asks for one. This
+   builds on the preserved proposal `a6f7f45` on `codex/student-auto-id-proposal`.
+5. A staff-created account keeps its existing record and Student ID when it is activated.
+
+These rules still apply to that work:
+
+- Guardian consent for face data is its own record, with a notice version, a timestamp and
+  withdrawal. Signup permission, local-analysis consent, observation sharing and live-video sharing
+  never imply it, and it never implies any of them.
+- "Default" means the path offered first, not assumed consent. No face processing happens until the
+  required consent is recorded, and choosing manual attendance must not reduce access to classes.
+- AI results still never confirm attendance on their own, and a missing face is still not an absence.
+- Extending face processing from the adult pilot to students under 18 needs a privacy and legal
+  review, including New Zealand rules for biometric processing, before release.
+- Duplicate-account handling (see "Known limit") must be decided before students stop typing their
+  Student ID.
+
+Schema plan: V11 is applied and frozen. Follow-up schema changes go in new Flyway files from V12
+upward, added by one agent at a time, with the version named in each task brief. Expected changes are
+the Student ID sequence (taken from `a6f7f45`, outside V11), guardian face-data consent records and
+attendance-mode choice or request records. Making guardian details required and keeping Student IDs
+on activation are not expected to need schema changes.
