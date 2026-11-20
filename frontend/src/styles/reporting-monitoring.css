@@ -1845,6 +1845,36 @@ button.kv--history:focus-visible {
   white-space: nowrap;
 }
 
+/* Keep row actions visible while wider desktop columns scroll underneath.
+   The mobile admin cards own their action layout at 760px and below. */
+@media screen and (min-width: 761px) {
+  .registrations-table .table__action-cell {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    width: 300px;
+    min-width: 300px;
+    background: var(--panel);
+    box-shadow: inset 1px 0 0 var(--line-strong);
+  }
+
+  .registrations-table th.table__action-cell {
+    z-index: 3;
+    background: var(--panel-2);
+  }
+
+  .registrations-table tr:hover > td.table__action-cell,
+  .registrations-table td.table__action-cell:focus-within {
+    background: var(--panel-2);
+  }
+
+  .registrations-table .registration-actions {
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}
+
 .registrations-empty,
 .report-list-card > .empty {
   min-height: 148px;
