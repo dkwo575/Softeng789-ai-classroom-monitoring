@@ -145,11 +145,21 @@ gives default focus only; the user's assignment for a task overrides it.
 
 | Agent | Folder and branches | Default focus |
 | --- | --- | --- |
-| Claude Code (Opus 5.5, xhigh effort) | Main checkout, `DoJun/*` | Design and task briefs, root-cause analysis, changes across layers, integration and UI checks, security review of face and auth changes |
-| Codex (GPT-6 Astra, high effort) | Own worktree under `C:\Users\ASUS\.codex\worktrees\`, `codex/*` | Scoped implementation, pull request review fixes, tests, CI fixes, backend and script changes |
+| Claude Code (Opus 5.5, xhigh effort) | Main checkout for integration and UI checks; own worktree under `D:\UOA2\2026\` for implementation; `DoJun/*` | Design and task briefs, frontend implementation with its tests, integration and UI checks, review of Codex's work, security review of face and auth changes |
+| Codex (GPT-6 Astra, high effort) | Own worktree under `C:\Users\ASUS\.codex\worktrees\`, `codex/*` | Backend, Flyway migration and script implementation with their tests, review of Claude's work, pull request review fixes, CI fixes |
 
 Each task names an implementer, a reviewer and an integration owner. Assign them by current context,
 task scope and what the other agent is doing. The reviewer is never the author.
+
+Split by area (from 2026-11-23): a task that spans both areas is split between the two agents.
+
+- The brief fixes the API contract first: endpoints, request and response fields, and error codes.
+- Codex then builds the backend side and Claude builds the frontend side, at the same time, on
+  separate branches.
+- Changing the contract mid-task needs agreement through the user.
+- Each agent reviews the other's part, and Claude integrates both branches in the main checkout.
+- A task that stays in one area goes to that area's owner.
+- Claude never implements in the main checkout, because the local stack runs there.
 
 1. One agent, one branch, one folder. Other worktrees cannot see uncommitted files; commit to hand off.
    Worktrees do not contain `AGENTS.md` or `CLAUDE.md`. Read them from the main checkout, or copy them
@@ -161,9 +171,15 @@ task scope and what the other agent is doing. The reviewer is never the author.
 4. Do not repeat an approach without new evidence. Analyse the failure and try a different approach.
 5. Hand off with what you need and what you tried when a user decision, permissions, an external
    dependency or another agent's work blocks you.
+6. Commit at each working checkpoint, so that an agent stopped by a usage limit leaves no uncommitted
+   work behind.
+7. While developing, run only the tests related to your change. Run the full suites once, before the
+   handoff. Write long test output to a file and read only the summary and the failures.
 
 These shared files have one owner per task: Flyway migrations, `scripts/test-frontend-models.sh`,
-`frontend/package-lock.json` and `ai-service/requirements*.lock`.
+`frontend/package-lock.json` and `ai-service/requirements*.lock`. In a split task the backend
+implementer owns the migrations and the frontend implementer owns the two frontend files, unless the
+brief says otherwise.
 
 ### Task brief
 
@@ -171,8 +187,9 @@ Written by the user or an agent before work starts. Omit lines that do not apply
 
 ```text
 Task: <one sentence>
-Roles: implement <agent> / review <agent> / integrate <agent>
-Branch: <branch>, base commit <sha>
+Roles: implement <agent, or backend Codex + frontend Claude> / review <agent per part> / integrate <agent>
+Branch: <branch per implementer>, base commit <sha>
+API contract: <endpoints, fields and error codes both sides build against | none>
 Change scope: <paths>
 Related tests and docs: <paths that may also change>
 Do not touch: <paths>
