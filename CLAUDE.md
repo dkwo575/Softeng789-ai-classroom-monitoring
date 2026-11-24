@@ -11,6 +11,7 @@ overrides your default focus.
   touch face data, authentication or sessions.
 - When another agent will implement, write the task brief in the format above. Put it in the pull
   request description or give it to the user to paste.
-- For your frontend part of a split task, add a worktree under `D:\UOA2\2026\` on a `DoJun/*` branch.
-  Build only against the brief's API contract. Hand off to Codex for review in the handoff format.
+- For your frontend part of a split task, add a worktree under `D:\UOA2\2026\` on a
+  `claude-<type>/<topic>` branch (see "Branch names" above). Build only against the brief's API
+  contract. Hand off to Codex for review in the handoff format.
   Then integrate the reviewed result into the main checkout.

@@ -145,8 +145,8 @@ gives default focus only; the user's assignment for a task overrides it.
 
 | Agent | Folder and branches | Default focus |
 | --- | --- | --- |
-| Claude Code (Opus 5.5, xhigh effort) | Main checkout for integration and UI checks; own worktree under `D:\UOA2\2026\` for implementation; `DoJun/*` | Design and task briefs, frontend implementation with its tests, integration and UI checks, review of Codex's work, security review of face and auth changes |
-| Codex (GPT-6 Astra, high effort) | Own worktree under `C:\Users\ASUS\.codex\worktrees\`, `codex/*` | Backend, Flyway migration and script implementation with their tests, review of Claude's work, pull request review fixes, CI fixes |
+| Claude Code (Opus 5.5, xhigh effort) | Main checkout for integration and UI checks; own worktree under `D:\UOA2\2026\` for implementation; `claude-<type>/*` | Design and task briefs, frontend implementation with its tests, integration and UI checks, review of Codex's work, security review of face and auth changes |
+| Codex (GPT-6 Astra, high effort) | Own worktree under `C:\Users\ASUS\.codex\worktrees\`, `codex-<type>/*` | Backend, Flyway migration and script implementation with their tests, review of Claude's work, pull request review fixes, CI fixes |
 
 Each task names an implementer, a reviewer and an integration owner. Assign them by current context,
 task scope and what the other agent is doing. The reviewer is never the author.
@@ -181,6 +181,23 @@ These shared files have one owner per task: Flyway migrations, `scripts/test-fro
 implementer owns the migrations and the frontend implementer owns the two frontend files, unless the
 brief says otherwise.
 
+### Branch names
+
+New branches use these names (from 2026-11-24). Existing branches keep their names, including the
+`codex/*` and `DoJun/*` branches, `DoJun/kiosk-integration` and `DoJun/agent-config`.
+
+- `<type>` is `feat`, `fix`, `refactor`, `docs` or `test`, matching the commit prefixes. Choose the
+  branch's main purpose.
+- Working branches name the agent: Codex uses `codex-<type>/<topic>` and Claude uses
+  `claude-<type>/<topic>`. In a split task both use the same topic, for example
+  `codex-feat/student-photo` and `claude-feat/student-photo`.
+- The brief's `Branch:` line names each branch. If a tool creates another name, rename the branch
+  before the first commit.
+- An upstream pull request comes from a `dojun-<type>/<topic>` branch made from the reviewed,
+  integrated result and pushed to `origin` only. The user opens the pull request.
+- Never use a bare `dojun/` prefix: Windows treats ref names case-insensitively, so it collides with
+  `DoJun/`.
+
 ### Task brief
 
 Written by the user or an agent before work starts. Omit lines that do not apply.
@@ -212,3 +229,7 @@ Not run: <check: reason>
 UI check: <folder, URL, commit, extra uncommitted changes | not run: reason>
 Open issues: <remaining problems and decisions needed>
 ```
+
+An upstream pull request description also states the user's role in one line, for example:
+"Designed, specified and tested by DoJun; implemented with AI coding assistants and reviewed
+before merge."
